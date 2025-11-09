@@ -155,9 +155,9 @@ jobs:
         docker tag $IMAGE librecov:test
         echo "Tagged as librecov:test"
     
-    - name: Start services with docker-compose
+    - name: Start services with docker compose
       run: |
-        docker-compose -f docker-compose.test.yml up -d
+        docker compose -f docker-compose.test.yml up -d
         echo "Services started"
         
         # Wait for LibreCov to be ready
@@ -169,7 +169,7 @@ jobs:
           fi
           if [ $i -eq 30 ]; then
             echo "❌ LibreCov failed to start"
-            docker-compose -f docker-compose.test.yml logs
+            docker compose -f docker-compose.test.yml logs
             exit 1
           fi
           echo "Attempt $i/30..."
@@ -177,7 +177,7 @@ jobs:
         done
         
         # Show service status
-        docker-compose -f docker-compose.test.yml ps
+        docker compose -f docker-compose.test.yml ps
     
     - name: Create test project
       run: |
@@ -186,15 +186,15 @@ jobs:
         
         # Verify tables exist
         echo "Checking if migrations completed..."
-        docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "\dt" || {
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "\dt" || {
           echo "❌ Failed to list tables"
-          docker-compose -f docker-compose.test.yml logs librecov
+          docker compose -f docker-compose.test.yml logs librecov
           exit 1
         }
         
         # Create test user and project
         echo "Creating test user and project..."
-        docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test << 'EOF'
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test << 'EOF'
         INSERT INTO users (email, name, token, created_at, updated_at) 
         VALUES ('test@example.com', 'Test User', 'test-user-token', NOW(), NOW());
         
@@ -204,7 +204,7 @@ jobs:
         
         if [ $? -ne 0 ]; then
           echo "❌ Failed to create test data"
-          docker-compose -f docker-compose.test.yml logs librecov
+          docker compose -f docker-compose.test.yml logs librecov
           exit 1
         fi
         
@@ -258,7 +258,7 @@ jobs:
         
         if [ "$HTTP_CODE" != "200" ]; then
           echo "❌ Upload failed with HTTP code $HTTP_CODE"
-          docker-compose -f docker-compose.test.yml logs librecov
+          docker compose -f docker-compose.test.yml logs librecov
           exit 1
         fi
         
@@ -269,17 +269,17 @@ jobs:
         echo "Verifying coverage data..."
         
         # Check coverage rate
-        COVERAGE_RATE=$(docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT coverage_rate FROM projects WHERE token = 'ci-test-project-token';" | tr -d ' ')
+        COVERAGE_RATE=$(docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT coverage_rate FROM projects WHERE token = 'ci-test-project-token';" | tr -d ' ')
         echo "Coverage rate: '$COVERAGE_RATE'"
         
         if [ -z "$COVERAGE_RATE" ] || [ "$COVERAGE_RATE" = "0" ]; then
           echo "❌ Coverage rate not updated"
-          docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT * FROM projects;"
+          docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT * FROM projects;"
           exit 1
         fi
         
         # Check builds created
-        BUILD_COUNT=$(docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM builds;" | tr -d ' ')
+        BUILD_COUNT=$(docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM builds;" | tr -d ' ')
         echo "Builds created: $BUILD_COUNT"
         
         if [ "$BUILD_COUNT" -lt "1" ]; then
@@ -288,7 +288,7 @@ jobs:
         fi
         
         # Check files created
-        FILE_COUNT=$(docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM job_files;" | tr -d ' ')
+        FILE_COUNT=$(docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM job_files;" | tr -d ' ')
         echo "Files created: $FILE_COUNT"
         
         if [ "$FILE_COUNT" -lt "2" ]; then
@@ -298,10 +298,10 @@ jobs:
         
         # Show data
         echo "=== Project Data ==="
-        docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT id, name, coverage_rate FROM projects;"
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT id, name, coverage_rate FROM projects;"
         
         echo "=== Build Data ==="
-        docker-compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT id, project_id, build_num, branch, coverage_rate FROM builds;"
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT id, project_id, build_num, branch, coverage_rate FROM builds;"
         
         echo "✅ All verifications passed!"
     
@@ -309,11 +309,11 @@ jobs:
       if: failure()
       run: |
         echo "=== LibreCov logs ==="
-        docker-compose -f docker-compose.test.yml logs librecov
+        docker compose -f docker-compose.test.yml logs librecov
         echo "=== Postgres logs ==="
-        docker-compose -f docker-compose.test.yml logs postgres
+        docker compose -f docker-compose.test.yml logs postgres
     
     - name: Cleanup
       if: always()
-      run: docker-compose -f docker-compose.test.yml down -v
+      run: docker compose -f docker-compose.test.yml down -v
 
