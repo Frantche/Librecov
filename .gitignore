@@ -38,6 +38,9 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 
+# Build artifacts
+bin/
+
 # Logs
 *.log
 npm-debug.log*
