@@ -22,7 +22,7 @@ func NewBuildHandler(db *gorm.DB) *BuildHandler {
 
 // List returns all builds for a project
 func (h *BuildHandler) List(c *gin.Context) {
-	projectID := c.Param("projectId")
+	projectID := c.Param("id")
 
 	var builds []models.Build
 	if err := h.db.Where("project_id = ?", projectID).
@@ -86,7 +86,7 @@ func (h *JobHandler) Get(c *gin.Context) {
 
 // ListByBuild returns all jobs for a build
 func (h *JobHandler) ListByBuild(c *gin.Context) {
-	buildID := c.Param("buildId")
+	buildID := c.Param("id")
 
 	var jobs []models.Job
 	if err := h.db.Where("build_id = ?", buildID).
@@ -273,7 +273,7 @@ func NewFileHandler(db *gorm.DB) *FileHandler {
 
 // List returns all files for a job
 func (h *FileHandler) List(c *gin.Context) {
-	jobID := c.Param("jobId")
+	jobID := c.Param("id")
 
 	var files []models.JobFile
 	if err := h.db.Where("job_id = ?", jobID).Find(&files).Error; err != nil {

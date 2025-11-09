@@ -47,13 +47,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 
 			// Builds
 			buildHandler := NewBuildHandler(db)
-			protected.GET("/projects/:projectId/builds", buildHandler.List)
+			protected.GET("/projects/:id/builds", buildHandler.List)
 			protected.GET("/builds/:id", buildHandler.Get)
 
 			// Jobs
 			jobHandler := NewJobHandler(db)
 			protected.GET("/jobs/:id", jobHandler.Get)
-			protected.GET("/builds/:buildId/jobs", jobHandler.ListByBuild)
+			protected.GET("/builds/:id/jobs", jobHandler.ListByBuild)
 
 			// Files
 			fileHandler := NewFileHandler(db)
