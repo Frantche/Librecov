@@ -22,7 +22,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.24.10'
     
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -124,7 +124,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.24.10'
     
     - name: Download dependencies
       run: go mod download
@@ -164,12 +164,29 @@ jobs:
           sleep 2
         done
         
+        # Show initial server logs to verify migrations
+        echo "=== Initial server logs ==="
+        head -20 server.log
+        
         # Verify health endpoint
         curl -v http://localhost:4000/health
     
     - name: Create test project
       run: |
+        # Wait a moment for migrations to complete
+        sleep 2
+        
+        # Verify tables exist
+        echo "Checking if migrations completed..."
+        PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "\dt" || {
+          echo "❌ Failed to list tables"
+          echo "=== Server logs ==="
+          cat server.log
+          exit 1
+        }
+        
         # Create a test user and project in the database
+        echo "Creating test user and project..."
         PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test << 'EOF'
         INSERT INTO users (email, name, token, created_at, updated_at) 
         VALUES ('test@example.com', 'Test User', 'test-user-token', NOW(), NOW());
@@ -177,6 +194,13 @@ jobs:
         INSERT INTO projects (name, token, user_id, created_at, updated_at) 
         VALUES ('CI Test Project', 'ci-test-project-token', 1, NOW(), NOW());
         EOF
+        
+        if [ $? -ne 0 ]; then
+          echo "❌ Failed to create test data"
+          echo "=== Server logs ==="
+          cat server.log
+          exit 1
+        fi
         
         echo "✅ Test project created"
     
