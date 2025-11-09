@@ -57,7 +57,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 
 			// Files
 			fileHandler := NewFileHandler(db)
-			protected.GET("/jobs/:jobId/files", fileHandler.List)
+			protected.GET("/jobs/:id/files", fileHandler.List)
 			protected.GET("/files/:id", fileHandler.Get)
 		}
 
