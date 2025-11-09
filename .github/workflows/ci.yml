@@ -142,19 +142,30 @@ jobs:
         DB_SSLMODE: disable
         PORT: 4000
       run: |
-        ./librecov-server &
+        ./librecov-server > server.log 2>&1 &
         SERVER_PID=$!
         echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        echo "Started server with PID: $SERVER_PID"
         
         # Wait for server to be ready
+        echo "Waiting for server to start..."
         for i in {1..30}; do
           if curl -s http://localhost:4000/health > /dev/null 2>&1; then
-            echo "Server is ready!"
+            echo "✅ Server is ready!"
             break
           fi
-          echo "Waiting for server to start... ($i/30)"
+          if [ $i -eq 30 ]; then
+            echo "❌ Server failed to start within 60 seconds"
+            echo "=== Server logs ==="
+            cat server.log
+            exit 1
+          fi
+          echo "Attempt $i/30..."
           sleep 2
         done
+        
+        # Verify health endpoint
+        curl -v http://localhost:4000/health
     
     - name: Create test project
       run: |
@@ -166,11 +177,13 @@ jobs:
         INSERT INTO projects (name, token, user_id, created_at, updated_at) 
         VALUES ('CI Test Project', 'ci-test-project-token', 1, NOW(), NOW());
         EOF
+        
+        echo "✅ Test project created"
     
     - name: Generate and upload coverage data
       run: |
         # Create a sample coverage report in Coveralls format
-        cat > coverage-report.json << 'EOF'
+        cat > coverage-report.json <<EOF
         {
           "repo_token": "ci-test-project-token",
           "service_name": "github-actions",
@@ -186,58 +199,101 @@ jobs:
           "source_files": [
             {
               "name": "backend/cmd/server/main.go",
-              "source": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello\")\n}\n",
+              "source": "package main\\n\\nimport \\"fmt\\"\\n\\nfunc main() {\\n\\tfmt.Println(\\"Hello\\")\\n}\\n",
               "coverage": [null, null, null, null, 1, 1, null]
             },
             {
               "name": "backend/internal/api/handlers.go",
-              "source": "package api\n\nfunc Handler() {}\n",
+              "source": "package api\\n\\nfunc Handler() {}\\n",
               "coverage": [null, null, 1, null]
             }
           ]
         }
         EOF
         
+        echo "=== Coverage report content ==="
+        cat coverage-report.json
+        echo ""
+        
         # Upload coverage to LibreCov
-        curl -X POST http://localhost:4000/upload/v2 \
+        echo "Uploading coverage data..."
+        HTTP_CODE=$(curl -w "%{http_code}" -o response.json -X POST http://localhost:4000/upload/v2 \
           -H "Content-Type: application/json" \
-          -d @coverage-report.json \
-          -f -v
+          -d @coverage-report.json)
+        
+        echo "HTTP Response Code: $HTTP_CODE"
+        echo "=== API Response ==="
+        cat response.json
+        echo ""
+        
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ Upload failed with HTTP code $HTTP_CODE"
+          echo "=== Server logs ==="
+          cat server.log
+          exit 1
+        fi
+        
+        echo "✅ Coverage uploaded successfully"
     
     - name: Verify coverage was uploaded
       run: |
-        # Check that the project was updated
-        COVERAGE_RATE=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT coverage_rate FROM projects WHERE token = 'ci-test-project-token';")
-        echo "Coverage rate: $COVERAGE_RATE"
+        echo "Verifying coverage data in database..."
         
-        if [ -z "$COVERAGE_RATE" ] || [ "$COVERAGE_RATE" == "0" ]; then
-          echo "ERROR: Coverage rate not updated"
+        # Check that the project was updated
+        COVERAGE_RATE=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT coverage_rate FROM projects WHERE token = 'ci-test-project-token';" | tr -d ' ')
+        echo "Coverage rate: '$COVERAGE_RATE'"
+        
+        if [ -z "$COVERAGE_RATE" ] || [ "$COVERAGE_RATE" = "0" ]; then
+          echo "❌ Coverage rate not updated"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT * FROM projects;"
           exit 1
         fi
         
         # Check that a build was created
-        BUILD_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM builds;")
+        BUILD_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM builds;" | tr -d ' ')
         echo "Builds created: $BUILD_COUNT"
         
         if [ "$BUILD_COUNT" -lt "1" ]; then
-          echo "ERROR: No build was created"
+          echo "❌ No build was created"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT * FROM builds;"
           exit 1
         fi
         
         # Check that files were created
-        FILE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM job_files;")
+        FILE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM job_files;" | tr -d ' ')
         echo "Files created: $FILE_COUNT"
         
         if [ "$FILE_COUNT" -lt "2" ]; then
-          echo "ERROR: Expected at least 2 files"
+          echo "❌ Expected at least 2 files, got $FILE_COUNT"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT * FROM job_files;"
           exit 1
         fi
         
+        # Show the data for debugging
+        echo "=== Project Data ==="
+        PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT id, name, coverage_rate FROM projects;"
+        
+        echo "=== Build Data ==="
+        PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT id, project_id, build_num, branch, commit_sha, coverage_rate FROM builds;"
+        
+        echo "=== Job Data ==="
+        PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT id, build_id, job_number, coverage_rate FROM jobs;"
+        
+        echo "=== File Data ==="
+        PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -c "SELECT id, job_id, name, coverage_rate FROM job_files;"
+        
         echo "✅ Coverage upload API test passed!"
+    
+    - name: Show server logs on failure
+      if: failure()
+      run: |
+        echo "=== Server logs ==="
+        cat server.log || echo "No server log file found"
     
     - name: Stop server
       if: always()
       run: |
         if [ ! -z "$SERVER_PID" ]; then
           kill $SERVER_PID || true
+          echo "Server stopped"
         fi
