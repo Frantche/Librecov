@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+bin/
+frontend/dist/
+frontend/node_modules/
+node_modules/
+
+# Development files
+.env
+.env.local
+*.log
+
+# Test files
+coverage.out
+coverage.html
+*.test
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/

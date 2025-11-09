@@ -1,0 +1,319 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.10'
+    
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.out ./backend/...
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.out
+        flags: backend
+
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./frontend
+      run: npm run lint || true
+    
+    - name: Build
+      working-directory: ./frontend
+      run: npm run build
+
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        outputs: type=docker,dest=/tmp/librecov-image.tar
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: librecov-image
+        path: /tmp/librecov-image.tar
+        retention-days: 1
+
+  coverage-api-test:
+    name: Test Coverage Upload API
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Docker image artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: librecov-image
+        path: /tmp
+    
+    - name: Load Docker image
+      run: docker load --input /tmp/librecov-image.tar
+    
+    - name: Tag image for testing
+      run: |
+        # Get the first image from the loaded tar
+        IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
+        echo "Loaded image: $IMAGE"
+        docker tag $IMAGE librecov:test
+        echo "Tagged as librecov:test"
+    
+    - name: Start services with docker compose
+      run: |
+        docker compose -f docker-compose.test.yml up -d
+        echo "Services started"
+        
+        # Wait for LibreCov to be ready
+        echo "Waiting for LibreCov to be ready..."
+        for i in {1..30}; do
+          if curl -s http://localhost:4000/health > /dev/null 2>&1; then
+            echo "✅ LibreCov is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "❌ LibreCov failed to start"
+            docker compose -f docker-compose.test.yml logs
+            exit 1
+          fi
+          echo "Attempt $i/30..."
+          sleep 2
+        done
+        
+        # Show service status
+        docker compose -f docker-compose.test.yml ps
+    
+    - name: Create test project
+      run: |
+        # Wait for migrations to complete
+        sleep 2
+        
+        # Verify tables exist
+        echo "Checking if migrations completed..."
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "\dt" || {
+          echo "❌ Failed to list tables"
+          docker compose -f docker-compose.test.yml logs librecov
+          exit 1
+        }
+        
+        # Create test user and project
+        echo "Creating test user and project..."
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test << 'EOF'
+        INSERT INTO users (email, name, token, created_at, updated_at) 
+        VALUES ('test@example.com', 'Test User', 'test-user-token', NOW(), NOW());
+        
+        INSERT INTO projects (name, token, user_id, created_at, updated_at) 
+        VALUES ('CI Test Project', 'ci-test-project-token', 1, NOW(), NOW());
+        EOF
+        
+        if [ $? -ne 0 ]; then
+          echo "❌ Failed to create test data"
+          docker compose -f docker-compose.test.yml logs librecov
+          exit 1
+        fi
+        
+        echo "✅ Test project created"
+    
+    - name: Upload coverage data
+      run: |
+        # Create coverage report
+        cat > coverage-report.json <<EOF
+        {
+          "repo_token": "ci-test-project-token",
+          "service_name": "github-actions",
+          "service_number": "${{ github.run_number }}",
+          "service_job_id": "${{ github.job }}",
+          "git": {
+            "head": {
+              "id": "${{ github.sha }}",
+              "message": "CI test commit"
+            },
+            "branch": "${{ github.ref_name }}"
+          },
+          "source_files": [
+            {
+              "name": "backend/cmd/server/main.go",
+              "source": "package main\\n\\nimport \\"fmt\\"\\n\\nfunc main() {\\n\\tfmt.Println(\\"Hello\\")\\n}\\n",
+              "coverage": [null, null, null, null, 1, 1, null]
+            },
+            {
+              "name": "backend/internal/api/handlers.go",
+              "source": "package api\\n\\nfunc Handler() {}\\n",
+              "coverage": [null, null, 1, null]
+            }
+          ]
+        }
+        EOF
+        
+        echo "=== Coverage report ==="
+        cat coverage-report.json
+        echo ""
+        
+        # Upload coverage
+        echo "Uploading coverage data..."
+        HTTP_CODE=$(curl -w "%{http_code}" -o response.json -X POST http://localhost:4000/upload/v2 \
+          -H "Content-Type: application/json" \
+          -d @coverage-report.json)
+        
+        echo "HTTP Response Code: $HTTP_CODE"
+        echo "=== API Response ==="
+        cat response.json
+        echo ""
+        
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ Upload failed with HTTP code $HTTP_CODE"
+          docker compose -f docker-compose.test.yml logs librecov
+          exit 1
+        fi
+        
+        echo "✅ Coverage uploaded successfully"
+    
+    - name: Verify uploaded data
+      run: |
+        echo "Verifying coverage data..."
+        
+        # Check coverage rate
+        COVERAGE_RATE=$(docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT coverage_rate FROM projects WHERE token = 'ci-test-project-token';" | tr -d ' ')
+        echo "Coverage rate: '$COVERAGE_RATE'"
+        
+        if [ -z "$COVERAGE_RATE" ] || [ "$COVERAGE_RATE" = "0" ]; then
+          echo "❌ Coverage rate not updated"
+          docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT * FROM projects;"
+          exit 1
+        fi
+        
+        # Check builds created
+        BUILD_COUNT=$(docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM builds;" | tr -d ' ')
+        echo "Builds created: $BUILD_COUNT"
+        
+        if [ "$BUILD_COUNT" -lt "1" ]; then
+          echo "❌ No build was created"
+          exit 1
+        fi
+        
+        # Check files created
+        FILE_COUNT=$(docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM job_files;" | tr -d ' ')
+        echo "Files created: $FILE_COUNT"
+        
+        if [ "$FILE_COUNT" -lt "2" ]; then
+          echo "❌ Expected at least 2 files, got $FILE_COUNT"
+          exit 1
+        fi
+        
+        # Show data
+        echo "=== Project Data ==="
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT id, name, coverage_rate FROM projects;"
+        
+        echo "=== Build Data ==="
+        docker compose -f docker-compose.test.yml exec -T postgres psql -U postgres -d librecov_test -c "SELECT id, project_id, build_num, branch, coverage_rate FROM builds;"
+        
+        echo "✅ All verifications passed!"
+    
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        echo "=== LibreCov logs ==="
+        docker compose -f docker-compose.test.yml logs librecov
+        echo "=== Postgres logs ==="
+        docker compose -f docker-compose.test.yml logs postgres
+    
+    - name: Cleanup
+      if: always()
+      run: docker compose -f docker-compose.test.yml down -v
+

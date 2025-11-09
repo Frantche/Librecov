@@ -30,3 +30,23 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Node modules
+node_modules/
+
+# Frontend build
+frontend/dist/
+frontend/.vite/
+
+# Build artifacts
+bin/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Helm packages
+.helm-packages/
+*.tgz
