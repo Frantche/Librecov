@@ -96,3 +96,148 @@ jobs:
         tags: librecov:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+  coverage-api-test:
+    name: Test Coverage Upload API
+    runs-on: ubuntu-latest
+    needs: [build]
+    permissions:
+      contents: read
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: librecov_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Build backend
+      run: go build -o librecov-server backend/cmd/server/main.go
+    
+    - name: Start LibreCov server in background
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_NAME: librecov_test
+        DB_SSLMODE: disable
+        PORT: 4000
+      run: |
+        ./librecov-server &
+        SERVER_PID=$!
+        echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        
+        # Wait for server to be ready
+        for i in {1..30}; do
+          if curl -s http://localhost:4000/health > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+          fi
+          echo "Waiting for server to start... ($i/30)"
+          sleep 2
+        done
+    
+    - name: Create test project
+      run: |
+        # Create a test user and project in the database
+        PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test << 'EOF'
+        INSERT INTO users (email, name, token, created_at, updated_at) 
+        VALUES ('test@example.com', 'Test User', 'test-user-token', NOW(), NOW());
+        
+        INSERT INTO projects (name, token, user_id, created_at, updated_at) 
+        VALUES ('CI Test Project', 'ci-test-project-token', 1, NOW(), NOW());
+        EOF
+    
+    - name: Generate and upload coverage data
+      run: |
+        # Create a sample coverage report in Coveralls format
+        cat > coverage-report.json << 'EOF'
+        {
+          "repo_token": "ci-test-project-token",
+          "service_name": "github-actions",
+          "service_number": "${{ github.run_number }}",
+          "service_job_id": "${{ github.job }}",
+          "git": {
+            "head": {
+              "id": "${{ github.sha }}",
+              "message": "CI test commit"
+            },
+            "branch": "${{ github.ref_name }}"
+          },
+          "source_files": [
+            {
+              "name": "backend/cmd/server/main.go",
+              "source": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello\")\n}\n",
+              "coverage": [null, null, null, null, 1, 1, null]
+            },
+            {
+              "name": "backend/internal/api/handlers.go",
+              "source": "package api\n\nfunc Handler() {}\n",
+              "coverage": [null, null, 1, null]
+            }
+          ]
+        }
+        EOF
+        
+        # Upload coverage to LibreCov
+        curl -X POST http://localhost:4000/upload/v2 \
+          -H "Content-Type: application/json" \
+          -d @coverage-report.json \
+          -f -v
+    
+    - name: Verify coverage was uploaded
+      run: |
+        # Check that the project was updated
+        COVERAGE_RATE=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT coverage_rate FROM projects WHERE token = 'ci-test-project-token';")
+        echo "Coverage rate: $COVERAGE_RATE"
+        
+        if [ -z "$COVERAGE_RATE" ] || [ "$COVERAGE_RATE" == "0" ]; then
+          echo "ERROR: Coverage rate not updated"
+          exit 1
+        fi
+        
+        # Check that a build was created
+        BUILD_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM builds;")
+        echo "Builds created: $BUILD_COUNT"
+        
+        if [ "$BUILD_COUNT" -lt "1" ]; then
+          echo "ERROR: No build was created"
+          exit 1
+        fi
+        
+        # Check that files were created
+        FILE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres -d librecov_test -t -c "SELECT COUNT(*) FROM job_files;")
+        echo "Files created: $FILE_COUNT"
+        
+        if [ "$FILE_COUNT" -lt "2" ]; then
+          echo "ERROR: Expected at least 2 files"
+          exit 1
+        fi
+        
+        echo "✅ Coverage upload API test passed!"
+    
+    - name: Stop server
+      if: always()
+      run: |
+        if [ ! -z "$SERVER_PID" ]; then
+          kill $SERVER_PID || true
+        fi

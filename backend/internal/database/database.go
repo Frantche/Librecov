@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/Frantche/Librecov/backend/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -50,10 +51,7 @@ func Initialize() (*gorm.DB, error) {
 
 // runMigrations runs all database migrations
 func runMigrations(db *gorm.DB) error {
-	// Import models package dynamically to avoid circular imports
-	// For now, we'll leave this commented as models are in a separate package
-	// This will be uncommented after ensuring no circular dependencies
-	/*
+	log.Println("Running database migrations...")
 	return db.AutoMigrate(
 		&models.User{},
 		&models.Project{},
@@ -61,9 +59,6 @@ func runMigrations(db *gorm.DB) error {
 		&models.Job{},
 		&models.JobFile{},
 	)
-	*/
-	log.Println("Migrations skipped (to be enabled with proper model import)")
-	return nil
 }
 
 // getEnv gets an environment variable with a default fallback
