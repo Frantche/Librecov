@@ -46,3 +46,7 @@ bin/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Helm packages
+.helm-packages/
+*.tgz

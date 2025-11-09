@@ -1,0 +1,16 @@
+apiVersion: v2
+name: librecov
+description: A Helm chart for LibreCov - Open source code coverage history viewer
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - coverage
+  - testing
+  - ci-cd
+home: https://github.com/Frantche/Librecov
+sources:
+  - https://github.com/Frantche/Librecov
+maintainers:
+  - name: Frantche
+    url: https://github.com/Frantche

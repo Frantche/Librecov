@@ -35,8 +35,49 @@ LibreCov is a self-hosted open-source code coverage history viewer built with Go
 - Node.js 20+
 - PostgreSQL 12+
 - (Optional) OIDC provider for authentication
+- (Optional) Kubernetes 1.19+ and Helm 3.0+ for Kubernetes deployment
 
 ### Installation
+
+#### Option 1: Kubernetes with Helm (Recommended for Production)
+
+1. **Install from OCI registry**
+   ```bash
+   helm install librecov oci://ghcr.io/frantche/charts/librecov --version 1.0.0
+   ```
+
+2. **Or install from source**
+   ```bash
+   git clone https://github.com/Frantche/Librecov.git
+   cd Librecov
+   helm install librecov ./helm/librecov
+   ```
+
+3. **With custom values**
+   ```bash
+   helm install librecov oci://ghcr.io/frantche/charts/librecov \
+     --set ingress.enabled=true \
+     --set ingress.hosts[0].host=librecov.example.com
+   ```
+
+See [Helm Chart README](./helm/librecov/README.md) for detailed configuration options.
+
+#### Option 2: Docker Compose (Quick Local Development)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Frantche/Librecov.git
+   cd Librecov
+   ```
+
+2. **Start with Docker Compose**
+   ```bash
+   docker-compose up
+   ```
+   
+   Access the application at http://localhost:4000
+
+#### Option 3: Manual Installation
 
 1. **Clone the repository**
    ```bash
@@ -159,9 +200,57 @@ goveralls -service=librecov -repotoken=YOUR_PROJECT_TOKEN -coverprofile=coverage
 
 Set the endpoint URL to your LibreCov instance.
 
-## Docker Deployment
+## Deployment
 
-Coming soon!
+### Kubernetes with Helm
+
+LibreCov can be deployed to Kubernetes using the official Helm chart:
+
+```bash
+# Install from OCI registry
+helm install librecov oci://ghcr.io/frantche/charts/librecov --version 1.0.0
+
+# Or from source
+helm install librecov ./helm/librecov
+```
+
+**Custom configuration:**
+```bash
+# With ingress enabled
+helm install librecov oci://ghcr.io/frantche/charts/librecov \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=librecov.example.com \
+  --set ingress.className=nginx
+
+# With OIDC authentication
+helm install librecov oci://ghcr.io/frantche/charts/librecov \
+  --set config.oidc.enabled=true \
+  --set config.oidc.issuer=https://your-oidc-provider.com \
+  --set config.oidc.clientId=your-client-id \
+  --set config.oidc.clientSecret=your-client-secret
+
+# With external PostgreSQL
+helm install librecov oci://ghcr.io/frantche/charts/librecov \
+  --set postgresql.enabled=false \
+  --set externalDatabase.host=postgres.example.com \
+  --set externalDatabase.password=yourpassword
+```
+
+For more configuration options, see the [Helm Chart README](./helm/librecov/README.md).
+
+### Docker
+
+Build and run with Docker:
+
+```bash
+# Build the image
+docker build -t librecov:latest .
+
+# Run with Docker Compose
+docker-compose up
+```
+
+The Docker Compose setup includes PostgreSQL and is ready for development or testing.
 
 ## Contributing
 

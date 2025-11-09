@@ -1,0 +1,53 @@
+name: Release Helm Chart
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release-helm-chart:
+    name: Release Helm Chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: 'v3.13.0'
+    
+    - name: Log in to GitHub Container Registry
+      run: |
+        echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+    
+    - name: Extract version from Chart.yaml
+      id: chart_version
+      run: |
+        VERSION=$(grep '^version:' helm/librecov/Chart.yaml | awk '{print $2}')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Chart version: $VERSION"
+    
+    - name: Package Helm chart
+      run: |
+        helm package helm/librecov --destination .helm-packages
+    
+    - name: Push Helm chart to GHCR
+      run: |
+        CHART_VERSION="${{ steps.chart_version.outputs.version }}"
+        helm push .helm-packages/librecov-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+    
+    - name: List pushed chart
+      run: |
+        echo "Helm chart pushed to: oci://ghcr.io/${{ github.repository_owner }}/charts/librecov:${{ steps.chart_version.outputs.version }}"
