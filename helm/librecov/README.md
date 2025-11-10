@@ -22,6 +22,14 @@ Or from the OCI registry:
 helm install librecov oci://ghcr.io/frantche/charts/librecov --version 1.0.0
 ```
 
+Alternatively, you can install using the `librecov-he` chart name:
+
+```bash
+helm install librecov oci://ghcr.io/frantche/charts/librecov-he --version 1.0.0
+```
+
+**Note**: Both `librecov` and `librecov-he` are the same chart published under different names for compatibility purposes. They are automatically published to GHCR on every push to the main branch and on version tags.
+
 ## Uninstalling the Chart
 
 To uninstall/delete the `librecov` deployment:
