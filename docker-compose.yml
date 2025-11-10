@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
@@ -31,6 +29,7 @@ services:
       - DB_NAME=librecov_dev
       - DB_SSLMODE=disable
       - PORT=4000
+    env_file: ".env"
     depends_on:
       db:
         condition: service_healthy

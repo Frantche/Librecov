@@ -17,7 +17,7 @@ type User struct {
 	Name          string `json:"name"`
 	Admin         bool   `gorm:"default:false" json:"admin"`
 	Token         string `gorm:"uniqueIndex" json:"token,omitempty"`
-	OIDCSubject   string `gorm:"uniqueIndex" json:"-"` // OIDC subject identifier
+	OIDCSubject   string `gorm:"column:oidc_subject;uniqueIndex" json:"-"` // OIDC subject identifier
 	EmailVerified bool   `gorm:"default:false" json:"email_verified"`
 
 	// Relationships

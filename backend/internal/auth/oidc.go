@@ -11,20 +11,18 @@ import (
 
 // OIDCProvider handles OpenID Connect authentication
 type OIDCProvider struct {
-	Provider     *oidc.Provider
-	Verifier     *oidc.IDTokenVerifier
-	Config       oauth2.Config
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-	Issuer       string
+	Provider    *oidc.Provider
+	Verifier    *oidc.IDTokenVerifier
+	Config      oauth2.Config
+	ClientID    string
+	RedirectURL string
+	Issuer      string
 }
 
 // NewOIDCProvider creates a new OIDC provider
 func NewOIDCProvider() (*OIDCProvider, error) {
 	issuer := os.Getenv("OIDC_ISSUER")
 	clientID := os.Getenv("OIDC_CLIENT_ID")
-	clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
 	redirectURL := os.Getenv("OIDC_REDIRECT_URL")
 
 	// OIDC is optional, can be disabled
@@ -40,22 +38,21 @@ func NewOIDCProvider() (*OIDCProvider, error) {
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
 
+	// Configure for public client (no client secret required)
 	config := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		ClientID:    clientID,
+		RedirectURL: redirectURL,
+		Endpoint:    provider.Endpoint(),
+		Scopes:      []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
 	return &OIDCProvider{
-		Provider:     provider,
-		Verifier:     verifier,
-		Config:       config,
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Issuer:       issuer,
+		Provider:    provider,
+		Verifier:    verifier,
+		Config:      config,
+		ClientID:    clientID,
+		RedirectURL: redirectURL,
+		Issuer:      issuer,
 	}, nil
 }
 
