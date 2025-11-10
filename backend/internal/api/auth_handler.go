@@ -132,6 +132,23 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// GetConfig returns authentication configuration including OIDC info
+func (h *AuthHandler) GetConfig(c *gin.Context) {
+	response := gin.H{
+		"oidc_enabled": h.oidcProvider.IsEnabled(),
+	}
+
+	if h.oidcProvider.IsEnabled() {
+		response["oidc"] = gin.H{
+			"issuer":       h.oidcProvider.Issuer,
+			"client_id":    h.oidcProvider.ClientID,
+			"redirect_url": h.oidcProvider.RedirectURL,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // generateRandomString generates a random string of the specified length
 func generateRandomString(length int) string {
 	b := make([]byte, length)
