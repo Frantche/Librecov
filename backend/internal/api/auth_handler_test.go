@@ -7,12 +7,8 @@ import (
 	"testing"
 
 	"github.com/Frantche/Librecov/backend/internal/auth"
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 )
-
-// mockOIDCProvider creates a mock for testing with non-nil Provider
-type mockProvider struct{}
 
 func TestGetConfigWithOIDCEnabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -23,17 +19,16 @@ func TestGetConfigWithOIDCEnabled(t *testing.T) {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 
-	// Create OIDC provider with config
-	// We use type assertion to set a non-nil Provider
+	// Create OIDC provider with config fields set
+	// Note: Provider field is set to nil because mocking oidc.Provider is non-trivial
+	// This means IsEnabled() will return false, so this test verifies the disabled case
 	oidcProvider := &auth.OIDCProvider{
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 		RedirectURL:  "http://localhost:4000/auth/callback",
 		Issuer:       "https://test-issuer.com",
+		Provider:     nil, // Explicitly nil to simulate OIDC being disabled
 	}
-	// For this unit test, we set Provider to nil to simulate OIDC being disabled.
-	// Mocking oidc.Provider is non-trivial, so this test only verifies the disabled case.
-	oidcProvider.Provider = nil
 
 	// Create test request
 	w := httptest.NewRecorder()

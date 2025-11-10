@@ -56,7 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Initialize auth state
+  // Initialize auth state - should be called explicitly when the app starts
   const initialize = async () => {
     await loadAuthConfig()
     if (token.value) {
@@ -64,9 +64,6 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchUser()
     }
   }
-
-  // Auto-initialize
-  initialize()
 
   return {
     user,
@@ -80,5 +77,6 @@ export const useAuthStore = defineStore('auth', () => {
     loginWithOIDC,
     logout,
     loadAuthConfig,
+    initialize,
   }
 })

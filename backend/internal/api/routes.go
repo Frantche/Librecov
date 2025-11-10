@@ -89,7 +89,6 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	
 	// Serve index.html for all unmatched routes (SPA fallback)
 	router.NoRoute(func(c *gin.Context) {
-		// Check if file exists in dist folder
 		c.File("./frontend/dist/index.html")
 	})
 }
