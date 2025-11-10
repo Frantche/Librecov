@@ -184,10 +184,31 @@ The API is mostly compatible with the Coveralls API. Key endpoints:
 
 ### Authentication
 
-LibreCov supports two authentication methods:
+LibreCov supports flexible authentication:
 
-1. **OIDC (OpenID Connect)**: Configure OIDC environment variables to enable SSO
+1. **OIDC (OpenID Connect)**: Configure OIDC environment variables to enable SSO for user login
 2. **API Tokens**: Use project tokens for uploading coverage data
+
+#### OIDC Authentication Flow
+
+When OIDC is configured, the frontend automatically detects it and provides SSO login:
+
+1. The frontend fetches authentication configuration from `/auth/config`
+2. If OIDC is enabled, users are redirected to the OIDC provider for login
+3. After successful authentication, users are redirected back with an access token
+4. The token is used for all subsequent API requests
+
+If OIDC is not configured, the login page will display instructions for setting up OIDC authentication.
+
+**OIDC Configuration:**
+```env
+OIDC_ISSUER=https://your-oidc-provider.com
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_REDIRECT_URL=http://localhost:4000/auth/callback
+```
+
+**Note:** The backend serves the frontend in production mode. When you build the Docker image or run `make build`, the frontend is built and served by the backend from the `/` route. All frontend routes are handled by the SPA, and API routes are available under `/api/v1`.
 
 ## Uploading Coverage
 
