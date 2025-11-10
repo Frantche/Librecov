@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { AuthConfig } from '../types'
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',
@@ -19,5 +20,19 @@ apiClient.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// Fetch authentication configuration from the server
+export async function fetchAuthConfig(): Promise<AuthConfig> {
+  try {
+    const response = await axios.get('/auth/config')
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch auth config:', error)
+    // Return default config if fetch fails
+    return {
+      oidc_enabled: false,
+    }
+  }
+}
 
 export default apiClient

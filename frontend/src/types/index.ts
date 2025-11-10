@@ -8,6 +8,15 @@ export interface User {
   updated_at: string
 }
 
+export interface AuthConfig {
+  oidc_enabled: boolean
+  oidc?: {
+    issuer: string
+    client_id: string
+    redirect_url: string
+  }
+}
+
 export interface Project {
   id: number
   name: string
