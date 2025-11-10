@@ -43,11 +43,32 @@ jobs:
       run: |
         helm package helm/librecov --destination .helm-packages
     
-    - name: Push Helm chart to GHCR
+    - name: Push Helm chart to GHCR as librecov
       run: |
         CHART_VERSION="${{ steps.chart_version.outputs.version }}"
         helm push .helm-packages/librecov-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
     
-    - name: List pushed chart
+    - name: Push Helm chart to GHCR as librecov-he
       run: |
-        echo "Helm chart pushed to: oci://ghcr.io/${{ github.repository_owner }}/charts/librecov:${{ steps.chart_version.outputs.version }}"
+        CHART_VERSION="${{ steps.chart_version.outputs.version }}"
+        # Pull the chart we just pushed
+        helm pull oci://ghcr.io/${{ github.repository_owner }}/charts/librecov --version ${CHART_VERSION} --destination /tmp
+        
+        # Extract the chart
+        mkdir -p /tmp/librecov-he
+        tar -xzf /tmp/librecov-${CHART_VERSION}.tgz -C /tmp/librecov-he
+        
+        # Update Chart.yaml to use librecov-he as the name
+        sed -i 's/^name: librecov$/name: librecov-he/' /tmp/librecov-he/librecov/Chart.yaml
+        
+        # Package with new name
+        helm package /tmp/librecov-he/librecov --destination /tmp/packages
+        
+        # Push with new name
+        helm push /tmp/packages/librecov-he-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+    
+    - name: List pushed charts
+      run: |
+        echo "Helm charts pushed to GHCR:"
+        echo "  - oci://ghcr.io/${{ github.repository_owner }}/charts/librecov:${{ steps.chart_version.outputs.version }}"
+        echo "  - oci://ghcr.io/${{ github.repository_owner }}/charts/librecov-he:${{ steps.chart_version.outputs.version }}"

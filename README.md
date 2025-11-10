@@ -45,6 +45,11 @@ LibreCov is a self-hosted open-source code coverage history viewer built with Go
    ```bash
    helm install librecov oci://ghcr.io/frantche/charts/librecov --version 1.0.0
    ```
+   
+   Or using the `librecov-he` chart name:
+   ```bash
+   helm install librecov oci://ghcr.io/frantche/charts/librecov-he --version 1.0.0
+   ```
 
 2. **Or install from source**
    ```bash
