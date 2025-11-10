@@ -10,6 +10,11 @@ const router = createRouter({
       component: () => import('../views/ProjectsView.vue'),
     },
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
       path: '/projects/:id',
       name: 'project',
       component: () => import('../views/ProjectView.vue'),
@@ -44,7 +49,7 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Redirect to login
-    window.location.href = '/auth/login'
+    next({ name: 'login' })
     return
   }
 

@@ -21,6 +21,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	authGroup := router.Group("/auth")
 	{
 		authHandler := NewAuthHandler(db, oidcProvider)
+		authGroup.GET("/config", authHandler.GetConfig) // Public endpoint for auth config
 		authGroup.GET("/login", authHandler.Login)
 		authGroup.GET("/callback", authHandler.Callback)
 		authGroup.POST("/logout", authHandler.Logout)
@@ -82,9 +83,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	// Badge endpoint
 	router.GET("/projects/:id/badge.svg", NewBadgeHandler(db).GetBadge)
 
-	// Serve frontend in production
+	// Serve frontend static files in production
+	router.Static("/assets", "./frontend/dist/assets")
+	router.StaticFile("/favicon.ico", "./frontend/dist/favicon.ico")
+	
+	// Serve index.html for all unmatched routes (SPA fallback)
 	router.NoRoute(func(c *gin.Context) {
-		c.JSON(404, gin.H{"error": "Not found"})
+		c.File("./frontend/dist/index.html")
 	})
 }
 

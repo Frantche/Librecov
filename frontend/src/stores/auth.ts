@@ -1,13 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User } from '../types'
-import { apiClient } from '../services/api'
+import type { User, AuthConfig } from '../types'
+import { apiClient, fetchAuthConfig } from '../services/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(localStorage.getItem('token'))
+  const authConfig = ref<AuthConfig | null>(null)
 
   const isAuthenticated = computed(() => !!user.value && !!token.value)
+  const isOIDCEnabled = computed(() => authConfig.value?.oidc_enabled ?? false)
+
+  const loadAuthConfig = async () => {
+    authConfig.value = await fetchAuthConfig()
+  }
 
   const setToken = (newToken: string) => {
     token.value = newToken
@@ -33,6 +39,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const loginWithOIDC = () => {
+    // Redirect to backend OIDC login endpoint
+    window.location.href = '/auth/login'
+  }
+
   const logout = async () => {
     try {
       await apiClient.post('/auth/logout')
@@ -45,19 +56,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Initialize auth state
-  if (token.value) {
-    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
-    fetchUser()
+  // Initialize auth state - should be called explicitly when the app starts
+  const initialize = async () => {
+    await loadAuthConfig()
+    if (token.value) {
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
+      await fetchUser()
+    }
   }
 
   return {
     user,
     token,
+    authConfig,
     isAuthenticated,
+    isOIDCEnabled,
     setToken,
     clearToken,
     fetchUser,
+    loginWithOIDC,
     logout,
+    loadAuthConfig,
+    initialize,
   }
 })

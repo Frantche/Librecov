@@ -26,6 +26,32 @@ GET /api/v1/projects?token=YOUR_TOKEN
 
 ### Authentication
 
+#### `GET /auth/config`
+Get authentication configuration for the frontend.
+
+**Response:**
+```json
+{
+  "oidc_enabled": true,
+  "oidc": {
+    "issuer": "https://your-oidc-provider.com",
+    "client_id": "your-client-id",
+    "redirect_url": "http://localhost:4000/auth/callback"
+  }
+}
+```
+
+When OIDC is not configured:
+```json
+{
+  "oidc_enabled": false
+}
+```
+
+**Note:** This endpoint is public and does not require authentication. It allows the frontend to determine which authentication method to use.
+
+---
+
 #### `GET /auth/login`
 Initiates OIDC login flow. Redirects to OIDC provider.
 

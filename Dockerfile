@@ -3,6 +3,9 @@ FROM golang:1.24-alpine AS backend-builder
 
 WORKDIR /app
 
+# Install ca-certificates for HTTPS
+RUN apk --no-cache add ca-certificates git
+
 # Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
@@ -20,7 +23,7 @@ WORKDIR /app
 
 # Copy frontend package files
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy frontend source
 COPY frontend/ ./
