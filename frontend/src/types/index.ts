@@ -68,3 +68,7 @@ export interface JobFile {
   created_at: string
   updated_at: string
 }
+
+export interface RefreshSessionResponse {
+  token: string
+}

@@ -21,10 +21,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	authGroup := router.Group("/auth")
 	{
 		authHandler := NewAuthHandler(db, oidcProvider)
-		authGroup.GET("/config", authHandler.GetConfig) // Public endpoint for auth config
-		authGroup.GET("/login", authHandler.Login)
-		authGroup.GET("/callback", authHandler.Callback)
-		authGroup.POST("/logout", authHandler.Logout)
+		authGroup.GET("/config", authHandler.GetConfig)       // Public endpoint for auth config
+		authGroup.GET("/login", authHandler.Login)            // Initiate OIDC login
+		authGroup.GET("/callback", authHandler.Callback)      // OIDC callback handler
+		authGroup.POST("/logout", authHandler.Logout)         // Logout
+		authGroup.POST("/refresh", authHandler.RefreshSession) // Refresh session
 		authGroup.GET("/me", middleware.AuthMiddleware(), authHandler.Me)
 	}
 

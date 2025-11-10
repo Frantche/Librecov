@@ -6,15 +6,34 @@ import (
 
 	"github.com/Frantche/Librecov/backend/internal/database"
 	"github.com/Frantche/Librecov/backend/internal/models"
+	"github.com/Frantche/Librecov/backend/internal/session"
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware validates the authentication token
+// AuthMiddleware validates the authentication token or session
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// First, try to authenticate via session cookie
+		sessionID, err := c.Cookie("session_id")
+		if err == nil && sessionID != "" {
+			sessionStore := session.GetStore()
+			sess, err := sessionStore.GetSession(sessionID)
+			if err == nil {
+				// Valid session, get user from database
+				var user models.User
+				if err := database.DB.First(&user, sess.UserID).Error; err == nil {
+					// Set user in context
+					c.Set("user", &user)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		// Fall back to token-based authentication
 		token := extractToken(c)
 		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
 			c.Abort()
 			return
 		}
@@ -36,6 +55,23 @@ func AuthMiddleware() gin.HandlerFunc {
 // OptionalAuthMiddleware checks for authentication but doesn't require it
 func OptionalAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// First, try to authenticate via session cookie
+		sessionID, err := c.Cookie("session_id")
+		if err == nil && sessionID != "" {
+			sessionStore := session.GetStore()
+			sess, err := sessionStore.GetSession(sessionID)
+			if err == nil {
+				// Valid session, get user from database
+				var user models.User
+				if err := database.DB.First(&user, sess.UserID).Error; err == nil {
+					c.Set("user", &user)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		// Fall back to token-based authentication
 		token := extractToken(c)
 		if token != "" {
 			var user models.User

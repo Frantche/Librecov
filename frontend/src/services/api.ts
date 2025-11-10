@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosResponse } from 'axios'
 import type { AuthConfig } from '../types'
 
 export const apiClient = axios.create({
@@ -6,12 +6,13 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Include cookies in requests
 })
 
 // Add response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: any) => {
     if (error.response?.status === 401) {
       // Redirect to login on unauthorized
       localStorage.removeItem('token')
@@ -32,6 +33,16 @@ export async function fetchAuthConfig(): Promise<AuthConfig> {
     return {
       oidc_enabled: false,
     }
+  }
+}
+
+export async function refreshSession() {
+  try {
+    const response = await apiClient.post('/auth/refresh')
+    return response.data
+  } catch (error) {
+    console.error('Failed to refresh session:', error)
+    throw error
   }
 }
 

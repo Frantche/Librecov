@@ -12,6 +12,7 @@ import (
 	"github.com/Frantche/Librecov/backend/internal/api"
 	"github.com/Frantche/Librecov/backend/internal/auth"
 	"github.com/Frantche/Librecov/backend/internal/database"
+	"github.com/Frantche/Librecov/backend/internal/session"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,6 +28,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize OIDC provider: %v", err)
 	}
+
+	// Start session cleanup routine
+	sessionStore := session.GetStore()
+	sessionStore.StartCleanupRoutine()
 
 	// Create Gin router
 	router := gin.Default()
