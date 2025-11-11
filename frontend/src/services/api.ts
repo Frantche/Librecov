@@ -46,4 +46,67 @@ export async function refreshSession() {
   }
 }
 
+// Admin API methods
+export async function fetchAllUsers() {
+  try {
+    const response = await apiClient.get('/admin/users')
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch all users:', error)
+    throw error
+  }
+}
+
+export async function fetchAllProjects() {
+  try {
+    const response = await apiClient.get('/admin/projects')
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch all projects:', error)
+    throw error
+  }
+}
+
+// Project sharing API methods
+export async function fetchProjectShares(projectId: number) {
+  try {
+    const response = await apiClient.get(`/projects/${projectId}/shares`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch project shares:', error)
+    throw error
+  }
+}
+
+export async function createProjectShare(projectId: number, groupName: string) {
+  try {
+    const response = await apiClient.post(`/projects/${projectId}/shares`, { group_name: groupName })
+    return response.data
+  } catch (error) {
+    console.error('Failed to create project share:', error)
+    throw error
+  }
+}
+
+export async function deleteProjectShare(projectId: number, shareId: number) {
+  try {
+    const response = await apiClient.delete(`/projects/${projectId}/shares/${shareId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to delete project share:', error)
+    throw error
+  }
+}
+
+// Get user groups
+export async function fetchUserGroups() {
+  try {
+    const response = await axios.get('/auth/groups', { withCredentials: true })
+    return response.data.groups || []
+  } catch (error) {
+    console.error('Failed to fetch user groups:', error)
+    return []
+  }
+}
+
 export default apiClient
