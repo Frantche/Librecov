@@ -27,6 +27,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 		authGroup.POST("/logout", authHandler.Logout)         // Logout
 		authGroup.POST("/refresh", authHandler.RefreshSession) // Refresh session
 		authGroup.GET("/me", middleware.AuthMiddleware(), authHandler.Me)
+		authGroup.GET("/groups", middleware.AuthMiddleware(), authHandler.GetUserGroups)
 	}
 
 	// API v1 routes
@@ -58,6 +59,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			protected.POST("/projects/:id/tokens", server.CreateProjectToken)
 			protected.DELETE("/projects/:id/tokens/:tokenId", server.DeleteProjectToken)
 
+			// Project shares
+			protected.GET("/projects/:id/shares", projectHandler.GetShares)
+			protected.POST("/projects/:id/shares", projectHandler.CreateShare)
+			protected.DELETE("/projects/:id/shares/:shareId", projectHandler.DeleteShare)
+
 			// Builds
 			buildHandler := NewBuildHandler(db)
 			protected.GET("/projects/:id/builds", buildHandler.List)
@@ -83,6 +89,9 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			admin.GET("/users/:id", userHandler.Get)
 			admin.PUT("/users/:id", userHandler.Update)
 			admin.DELETE("/users/:id", userHandler.Delete)
+
+			projectHandler := NewProjectHandler(db)
+			admin.GET("/projects", projectHandler.ListAll)
 		}
 	}
 

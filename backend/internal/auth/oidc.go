@@ -112,11 +112,12 @@ func (p *OIDCProvider) VerifyIDToken(ctx context.Context, rawIDToken string) (*o
 
 // Claims represents the claims extracted from an ID token
 type Claims struct {
-	Sub           string `json:"sub"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
+	Sub           string   `json:"sub"`
+	Email         string   `json:"email"`
+	EmailVerified bool     `json:"email_verified"`
+	Name          string   `json:"name"`
+	Picture       string   `json:"picture"`
+	Groups        []string `json:"groups"` // Groups from OIDC token
 }
 
 // ExtractClaims extracts claims from an ID token
