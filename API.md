@@ -109,8 +109,24 @@ Get current user information.
   "email": "user@example.com",
   "name": "John Doe",
   "admin": false,
+  "groups": "[\"team-a\", \"developers\"]",
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+---
+
+#### `GET /auth/groups`
+Get current user's groups from OIDC token.
+
+**Headers:**
+- `Authorization: Bearer TOKEN`
+
+**Response:**
+```json
+{
+  "groups": ["team-a", "developers", "admins"]
 }
 ```
 
@@ -119,7 +135,7 @@ Get current user information.
 ### Projects
 
 #### `GET /api/v1/projects`
-List all projects for the authenticated user.
+List all projects for the authenticated user. Regular users see their own projects and projects shared with their groups. Admin users see all projects.
 
 **Headers:**
 - `Authorization: Bearer TOKEN`
@@ -135,6 +151,14 @@ List all projects for the authenticated user.
     "base_url": "https://github.com/user/repo",
     "coverage_rate": 85.5,
     "user_id": 1,
+    "shares": [
+      {
+        "id": 1,
+        "project_id": 1,
+        "group_name": "team-a",
+        "created_at": "2024-01-01T00:00:00Z"
+      }
+    ],
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"
   }
@@ -230,6 +254,75 @@ Delete a project.
 ```json
 {
   "message": "Project deleted"
+}
+```
+
+---
+
+### Project Sharing
+
+#### `GET /api/v1/projects/:id/shares`
+List all group shares for a project.
+
+**Headers:**
+- `Authorization: Bearer TOKEN`
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "project_id": 1,
+    "group_name": "team-a",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+---
+
+#### `POST /api/v1/projects/:id/shares`
+Share a project with a group. Only groups from the user's OIDC token can be used.
+
+**Headers:**
+- `Authorization: Bearer TOKEN`
+- `Content-Type: application/json`
+
+**Request Body:**
+```json
+{
+  "group_name": "team-a"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "project_id": 1,
+  "group_name": "team-a",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+**Errors:**
+- `403 Forbidden` - User does not have access to this group
+- `409 Conflict` - Project is already shared with this group
+
+---
+
+#### `DELETE /api/v1/projects/:id/shares/:shareId`
+Remove a group share from a project.
+
+**Headers:**
+- `Authorization: Bearer TOKEN`
+
+**Response:**
+```json
+{
+  "message": "Share deleted"
 }
 ```
 
@@ -425,6 +518,44 @@ Get a specific user.
 - `Authorization: Bearer ADMIN_TOKEN`
 
 **Response:** User object with projects
+
+---
+
+#### `GET /api/v1/admin/projects`
+List all projects in the system (admin only).
+
+**Headers:**
+- `Authorization: Bearer ADMIN_TOKEN`
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "My Project",
+    "token": "project-token-123",
+    "current_branch": "main",
+    "base_url": "https://github.com/user/repo",
+    "coverage_rate": 85.5,
+    "user_id": 1,
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "name": "John Doe"
+    },
+    "shares": [
+      {
+        "id": 1,
+        "project_id": 1,
+        "group_name": "team-a",
+        "created_at": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
 
 ---
 
