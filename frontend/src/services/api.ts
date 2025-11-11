@@ -110,3 +110,14 @@ export async function fetchUserGroups() {
 }
 
 export default apiClient
+
+// Refresh project token
+export async function refreshProjectToken(projectId: string) {
+  try {
+    const response = await apiClient.post(`/projects/${projectId}/refresh-token`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to refresh project token:', error)
+    throw error
+  }
+}
