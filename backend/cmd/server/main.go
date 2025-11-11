@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -12,8 +13,10 @@ import (
 	"github.com/Frantche/Librecov/backend/internal/api"
 	"github.com/Frantche/Librecov/backend/internal/auth"
 	"github.com/Frantche/Librecov/backend/internal/database"
+	"github.com/Frantche/Librecov/backend/internal/models"
 	"github.com/Frantche/Librecov/backend/internal/session"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -27,6 +30,30 @@ func main() {
 	oidcProvider, err := auth.NewOIDCProvider()
 	if err != nil {
 		log.Fatalf("Failed to initialize OIDC provider: %v", err)
+	}
+
+	// If FIRST_ADMIN_EMAIL is set, ensure that user exists and is marked as admin
+	firstAdmin := os.Getenv("FIRST_ADMIN_EMAIL")
+	if firstAdmin != "" {
+		var user models.User
+		if err := db.Where("email = ?", firstAdmin).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				log.Printf("FIRST_ADMIN_EMAIL=%s set but user not found. Create the user via OIDC first.", firstAdmin)
+			} else {
+				log.Printf("Error looking up FIRST_ADMIN_EMAIL user: %v", err)
+			}
+		} else {
+			if !user.Admin {
+				user.Admin = true
+				if err := db.Save(&user).Error; err != nil {
+					log.Printf("Failed to set user %s as admin: %v", firstAdmin, err)
+				} else {
+					log.Printf("User %s marked as admin (FIRST_ADMIN_EMAIL)", firstAdmin)
+				}
+			} else {
+				log.Printf("User %s already an admin", firstAdmin)
+			}
+		}
 	}
 
 	// Start session cleanup routine
