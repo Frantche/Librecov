@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/Frantche/Librecov/backend/internal/auth"
 	"github.com/Frantche/Librecov/backend/internal/middleware"
@@ -158,6 +159,14 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 			OIDCSubject:   claims.Sub,
 			EmailVerified: claims.EmailVerified,
 			Token:         generateRandomString(32),
+		}
+
+		// If FIRST_ADMIN_EMAIL is set and matches this user's email, mark as admin
+		firstAdmin := os.Getenv("FIRST_ADMIN_EMAIL")
+		if firstAdmin != "" && claims.Email != "" {
+			if strings.EqualFold(strings.TrimSpace(claims.Email), strings.TrimSpace(firstAdmin)) {
+				user.Admin = true
+			}
 		}
 		if err := h.db.Create(&user).Error; err != nil {
 			log.Printf("Failed to create user: %v", err)
