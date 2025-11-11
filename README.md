@@ -215,14 +215,73 @@ OIDC_REDIRECT_URL=http://localhost:4000/auth/callback
 
 ## Uploading Coverage
 
-LibreCov accepts coverage data in Coveralls format. Most coverage tools that support Coveralls will work with LibreCov.
+LibreCov accepts coverage data in Coveralls JSON format via the `/upload/v2` endpoint.
 
-Example with `goveralls`:
+### Quick Start
+
+**For Go projects:**
+
+1. Get your project token from the Librecov UI (Project Settings → Tokens)
+2. Build the upload tool:
+   ```bash
+   cd tools/upload-coverage
+   go build -o ../../upload-coverage .
+   ```
+3. Run tests and upload:
+   ```bash
+   export PROJECT_TOKEN="your-project-token"
+   go test -covermode=count -coverprofile=coverage.out ./...
+   ./upload-coverage -coverprofile=coverage.out
+   ```
+
+**For JavaScript/Node.js projects:**
+
+1. Install coverage tools:
+   ```bash
+   npm install -D vitest @vitest/coverage-v8
+   ```
+2. Run tests with coverage and upload:
+   ```bash
+   npm run test:coverage
+   export PROJECT_TOKEN="your-project-token"
+   node scripts/upload-coverage-js.js
+   ```
+
+### Detailed Documentation
+
+See [COVERAGE_UPLOAD.md](./COVERAGE_UPLOAD.md) for comprehensive documentation including:
+- Complete setup instructions for Go and JavaScript
+- CI/CD integration examples (GitHub Actions, GitLab CI, Drone)
+- API reference and troubleshooting
+- Multiple upload methods and tools
+
+### Working Examples
+
+This repository includes working examples you can test:
+
 ```bash
-goveralls -service=librecov -repotoken=YOUR_PROJECT_TOKEN -coverprofile=coverage.out
+# Upload Go coverage from this project
+export PROJECT_TOKEN="your-project-token"
+./examples/upload-go-coverage.sh
+
+# See the tools/upload-coverage directory for the standalone Go uploader
+cd tools/upload-coverage
+go build -o ../../upload-coverage .
 ```
 
-Set the endpoint URL to your LibreCov instance.
+### Using goveralls (Alternative)
+
+```bash
+# Install goveralls
+go install github.com/mattn/goveralls@latest
+
+# Upload coverage
+goveralls -service=manual \
+  -repotoken=YOUR_PROJECT_TOKEN \
+  -coverprofile=coverage.out
+```
+
+**Note:** Configure goveralls to point to your LibreCov instance by setting the endpoint URL.
 
 ## Deployment
 
