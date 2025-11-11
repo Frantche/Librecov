@@ -23,11 +23,10 @@ func TestGetConfigWithOIDCEnabled(t *testing.T) {
 	// Note: Provider field is set to nil because mocking oidc.Provider is non-trivial
 	// This means IsEnabled() will return false, so this test verifies the disabled case
 	oidcProvider := &auth.OIDCProvider{
-		ClientID:     "test-client-id",
-		ClientSecret: "test-client-secret",
-		RedirectURL:  "http://localhost:4000/auth/callback",
-		Issuer:       "https://test-issuer.com",
-		Provider:     nil, // Explicitly nil to simulate OIDC being disabled
+		ClientID:    "test-client-id",
+		RedirectURL: "http://localhost:4000/auth/callback",
+		Issuer:      "https://test-issuer.com",
+		Provider:    nil, // Explicitly nil to simulate OIDC being disabled
 	}
 
 	// Create test request

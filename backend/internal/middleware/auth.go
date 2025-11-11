@@ -6,36 +6,100 @@ import (
 
 	"github.com/Frantche/Librecov/backend/internal/database"
 	"github.com/Frantche/Librecov/backend/internal/models"
+	"github.com/Frantche/Librecov/backend/internal/session"
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware validates the authentication token
+// AuthMiddleware validates the authentication token or session
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// First, try to authenticate via session cookie
+		sessionID, err := c.Cookie("session_id")
+		if err == nil && sessionID != "" {
+			sessionStore := session.GetStore()
+			sess, err := sessionStore.GetSession(sessionID)
+			if err == nil {
+				// Valid session, get user from database
+				var user models.User
+				if err := database.DB.First(&user, sess.UserID).Error; err == nil {
+					// Set user in context
+					c.Set("user", &user)
+					c.Set("user_id", user.ID)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		// Try to authenticate via API token (Bearer token)
 		token := extractToken(c)
-		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
-			c.Abort()
-			return
+		if token != "" {
+			// Check if it's a user token
+			var userToken models.UserToken
+			if err := database.DB.Where("token = ?", token).First(&userToken).Error; err == nil {
+				// Valid user token, get user from database
+				var user models.User
+				if err := database.DB.First(&user, userToken.UserID).Error; err == nil {
+					// Update last used timestamp
+					database.DB.Model(&userToken).Update("last_used", database.DB.NowFunc())
+					c.Set("user", &user)
+					c.Set("user_id", user.ID)
+					c.Next()
+					return
+				}
+			}
+
+			// Check if it's a project token
+			var projectToken models.ProjectToken
+			if err := database.DB.Preload("Project").Where("token = ?", token).First(&projectToken).Error; err == nil {
+				// Valid project token, get user from project
+				var user models.User
+				if err := database.DB.First(&user, projectToken.Project.UserID).Error; err == nil {
+					// Update last used timestamp
+					database.DB.Model(&projectToken).Update("last_used", database.DB.NowFunc())
+					c.Set("user", &user)
+					c.Set("user_id", user.ID)
+					c.Set("project_id", projectToken.ProjectID)
+					c.Next()
+					return
+				}
+			}
+
+			// Fall back to old token-based authentication (user.token field)
+			var user models.User
+			if err := database.DB.Where("token = ?", token).First(&user).Error; err == nil {
+				c.Set("user", &user)
+				c.Set("user_id", user.ID)
+				c.Next()
+				return
+			}
 		}
 
-		// Find user by token
-		var user models.User
-		if err := database.DB.Where("token = ?", token).First(&user).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-
-		// Set user in context
-		c.Set("user", &user)
-		c.Next()
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
+		c.Abort()
 	}
 }
 
 // OptionalAuthMiddleware checks for authentication but doesn't require it
 func OptionalAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// First, try to authenticate via session cookie
+		sessionID, err := c.Cookie("session_id")
+		if err == nil && sessionID != "" {
+			sessionStore := session.GetStore()
+			sess, err := sessionStore.GetSession(sessionID)
+			if err == nil {
+				// Valid session, get user from database
+				var user models.User
+				if err := database.DB.First(&user, sess.UserID).Error; err == nil {
+					c.Set("user", &user)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		// Fall back to token-based authentication
 		token := extractToken(c)
 		if token != "" {
 			var user models.User

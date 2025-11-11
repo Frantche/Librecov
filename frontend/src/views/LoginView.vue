@@ -24,7 +24,6 @@
         <ul class="config-list">
           <li>OIDC_ISSUER</li>
           <li>OIDC_CLIENT_ID</li>
-          <li>OIDC_CLIENT_SECRET</li>
           <li>OIDC_REDIRECT_URL</li>
         </ul>
       </div>

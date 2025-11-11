@@ -60,11 +60,6 @@ spec:
               value: {{ .Values.config.oidc.issuer | quote }}
             - name: OIDC_CLIENT_ID
               value: {{ .Values.config.oidc.clientId | quote }}
-            - name: OIDC_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "librecov.fullname" . }}-oidc
-                  key: client-secret
             - name: OIDC_REDIRECT_URL
               value: {{ .Values.config.oidc.redirectUrl | quote }}
             {{- end }}

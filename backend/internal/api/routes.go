@@ -21,10 +21,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	authGroup := router.Group("/auth")
 	{
 		authHandler := NewAuthHandler(db, oidcProvider)
-		authGroup.GET("/config", authHandler.GetConfig) // Public endpoint for auth config
-		authGroup.GET("/login", authHandler.Login)
-		authGroup.GET("/callback", authHandler.Callback)
-		authGroup.POST("/logout", authHandler.Logout)
+		authGroup.GET("/config", authHandler.GetConfig)       // Public endpoint for auth config
+		authGroup.GET("/login", authHandler.Login)            // Initiate OIDC login
+		authGroup.GET("/callback", authHandler.Callback)      // OIDC callback handler
+		authGroup.POST("/logout", authHandler.Logout)         // Logout
+		authGroup.POST("/refresh", authHandler.RefreshSession) // Refresh session
 		authGroup.GET("/me", middleware.AuthMiddleware(), authHandler.Me)
 	}
 
@@ -38,6 +39,12 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 		protected := v1.Group("")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			// User tokens
+			server := &Server{db: db}
+			protected.GET("/user/tokens", server.GetUserTokens)
+			protected.POST("/user/tokens", server.CreateUserToken)
+			protected.DELETE("/user/tokens/:id", server.DeleteUserToken)
+
 			// Projects
 			projectHandler := NewProjectHandler(db)
 			protected.GET("/projects", projectHandler.List)
@@ -45,6 +52,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			protected.GET("/projects/:id", projectHandler.Get)
 			protected.PUT("/projects/:id", projectHandler.Update)
 			protected.DELETE("/projects/:id", projectHandler.Delete)
+
+			// Project tokens
+			protected.GET("/projects/:id/tokens", server.GetProjectTokens)
+			protected.POST("/projects/:id/tokens", server.CreateProjectToken)
+			protected.DELETE("/projects/:id/tokens/:tokenId", server.DeleteProjectToken)
 
 			// Builds
 			buildHandler := NewBuildHandler(db)

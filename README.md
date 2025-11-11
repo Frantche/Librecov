@@ -112,7 +112,6 @@ See [Helm Chart README](./helm/librecov/README.md) for detailed configuration op
    # OIDC (optional)
    OIDC_ISSUER=https://your-oidc-provider.com
    OIDC_CLIENT_ID=your-client-id
-   OIDC_CLIENT_SECRET=your-client-secret
    OIDC_REDIRECT_URL=http://localhost:4000/auth/callback
    ```
 
@@ -209,7 +208,6 @@ If OIDC is not configured, the login page will display instructions for setting 
 ```env
 OIDC_ISSUER=https://your-oidc-provider.com
 OIDC_CLIENT_ID=your-client-id
-OIDC_CLIENT_SECRET=your-client-secret
 OIDC_REDIRECT_URL=http://localhost:4000/auth/callback
 ```
 

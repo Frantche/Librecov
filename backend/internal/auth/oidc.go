@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -11,20 +14,24 @@ import (
 
 // OIDCProvider handles OpenID Connect authentication
 type OIDCProvider struct {
-	Provider     *oidc.Provider
-	Verifier     *oidc.IDTokenVerifier
-	Config       oauth2.Config
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-	Issuer       string
+	Provider    *oidc.Provider
+	Verifier    *oidc.IDTokenVerifier
+	Config      oauth2.Config
+	ClientID    string
+	RedirectURL string
+	Issuer      string
+}
+
+// PKCEData contains PKCE verifier and challenge
+type PKCEData struct {
+	Verifier  string
+	Challenge string
 }
 
 // NewOIDCProvider creates a new OIDC provider
 func NewOIDCProvider() (*OIDCProvider, error) {
 	issuer := os.Getenv("OIDC_ISSUER")
 	clientID := os.Getenv("OIDC_CLIENT_ID")
-	clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
 	redirectURL := os.Getenv("OIDC_REDIRECT_URL")
 
 	// OIDC is optional, can be disabled
@@ -40,22 +47,41 @@ func NewOIDCProvider() (*OIDCProvider, error) {
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
 
+	// Configure for public client (no client secret required)
 	config := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		ClientID:    clientID,
+		RedirectURL: redirectURL,
+		Endpoint:    provider.Endpoint(),
+		Scopes:      []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
 	return &OIDCProvider{
-		Provider:     provider,
-		Verifier:     verifier,
-		Config:       config,
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Issuer:       issuer,
+		Provider:    provider,
+		Verifier:    verifier,
+		Config:      config,
+		ClientID:    clientID,
+		RedirectURL: redirectURL,
+		Issuer:      issuer,
+	}, nil
+}
+
+// GeneratePKCE generates PKCE verifier and challenge for public clients
+func GeneratePKCE() (*PKCEData, error) {
+	// Generate verifier (43-128 characters)
+	verifierBytes := make([]byte, 32)
+	if _, err := rand.Read(verifierBytes); err != nil {
+		return nil, err
+	}
+	verifier := base64.RawURLEncoding.EncodeToString(verifierBytes)
+
+	// Generate challenge (SHA256 of verifier)
+	h := sha256.New()
+	h.Write([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+
+	return &PKCEData{
+		Verifier:  verifier,
+		Challenge: challenge,
 	}, nil
 }
 
@@ -64,14 +90,19 @@ func (p *OIDCProvider) IsEnabled() bool {
 	return p.Provider != nil
 }
 
-// GetAuthURL returns the URL for initiating OIDC authentication
-func (p *OIDCProvider) GetAuthURL(state string) string {
-	return p.Config.AuthCodeURL(state)
+// GetAuthURL returns the URL for initiating OIDC authentication with PKCE
+func (p *OIDCProvider) GetAuthURL(state string, pkceChallenge string) string {
+	return p.Config.AuthCodeURL(state,
+		oauth2.SetAuthURLParam("code_challenge", pkceChallenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	)
 }
 
-// ExchangeCode exchanges an authorization code for tokens
-func (p *OIDCProvider) ExchangeCode(ctx context.Context, code string) (*oauth2.Token, error) {
-	return p.Config.Exchange(ctx, code)
+// ExchangeCode exchanges an authorization code for tokens with PKCE
+func (p *OIDCProvider) ExchangeCode(ctx context.Context, code string, pkceVerifier string) (*oauth2.Token, error) {
+	return p.Config.Exchange(ctx, code,
+		oauth2.SetAuthURLParam("code_verifier", pkceVerifier),
+	)
 }
 
 // VerifyIDToken verifies an ID token

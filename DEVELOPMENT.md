@@ -153,7 +153,6 @@ LibreCov supports OpenID Connect (OIDC) for authentication. To enable OIDC:
    ```env
    OIDC_ISSUER=https://your-oidc-provider.com
    OIDC_CLIENT_ID=your-client-id
-   OIDC_CLIENT_SECRET=your-client-secret
    OIDC_REDIRECT_URL=http://localhost:4000/auth/callback
    ```
 
