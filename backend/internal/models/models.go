@@ -24,8 +24,8 @@ type User struct {
 	Groups        string `gorm:"type:text" json:"groups"` // JSON array of group names from OIDC token
 
 	// Relationships
-	Projects   []Project    `gorm:"foreignKey:UserID" json:"projects,omitempty"`
-	UserTokens []UserToken  `gorm:"foreignKey:UserID" json:"tokens,omitempty"`
+	Projects   []Project   `gorm:"foreignKey:UserID" json:"projects,omitempty"`
+	UserTokens []UserToken `gorm:"foreignKey:UserID" json:"tokens,omitempty"`
 }
 
 // UserToken represents an API token for a user
@@ -35,10 +35,10 @@ type UserToken struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	UserID    uint       `gorm:"not null;index" json:"user_id"`
-	Name      string     `gorm:"not null" json:"name"`
-	Token     string     `gorm:"uniqueIndex;not null" json:"token,omitempty"`
-	LastUsed  *time.Time `json:"last_used,omitempty"`
+	UserID   uint       `gorm:"not null;index" json:"user_id"`
+	Name     string     `gorm:"not null" json:"name"`
+	Token    string     `gorm:"uniqueIndex;not null" json:"token,omitempty"`
+	LastUsed *time.Time `json:"last_used,omitempty"`
 
 	// Relationships
 	User User `gorm:"foreignKey:UserID" json:"-"`
@@ -137,8 +137,8 @@ type Job struct {
 	Data         string  `gorm:"type:text" json:"data"` // JSON data
 
 	// Relationships
-	Build Build      `gorm:"foreignKey:BuildID" json:"build,omitempty"`
-	Files []JobFile  `gorm:"foreignKey:JobID" json:"files,omitempty"`
+	Build Build     `gorm:"foreignKey:BuildID" json:"build,omitempty"`
+	Files []JobFile `gorm:"foreignKey:JobID" json:"files,omitempty"`
 }
 
 // JobFile represents a file in a coverage job

@@ -52,12 +52,12 @@ func Initialize() (*gorm.DB, error) {
 // runMigrations runs all database migrations
 func runMigrations(db *gorm.DB) error {
 	log.Println("Running database migrations...")
-	
+
 	// Run custom migrations first
 	if err := runCustomMigrations(db); err != nil {
 		return fmt.Errorf("failed to run custom migrations: %w", err)
 	}
-	
+
 	// Run auto migrations
 	return db.AutoMigrate(
 		&models.User{},
@@ -78,25 +78,25 @@ func runCustomMigrations(db *gorm.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to check for o_id_c_subject column: %w", err)
 	}
-	
+
 	if count > 0 {
 		log.Println("Renaming o_id_c_subject column to oidc_subject...")
-		
+
 		// First drop the unique index if it exists
 		err = db.Exec("DROP INDEX IF EXISTS idx_users_o_id_c_subject").Error
 		if err != nil {
 			log.Printf("Warning: failed to drop index idx_users_o_id_c_subject: %v", err)
 		}
-		
+
 		// Rename the column
 		err = db.Exec("ALTER TABLE users RENAME COLUMN o_id_c_subject TO oidc_subject").Error
 		if err != nil {
 			return fmt.Errorf("failed to rename o_id_c_subject column: %w", err)
 		}
-		
+
 		log.Println("Successfully renamed o_id_c_subject to oidc_subject")
 	}
-	
+
 	return nil
 }
 

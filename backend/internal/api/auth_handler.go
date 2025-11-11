@@ -60,13 +60,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Set state cookie (for CSRF validation)
 	c.SetCookie(
-		"oidc_state",           // name
-		state,                  // value
-		600,                    // maxAge (10 minutes)
-		"/",                    // path
-		cookieDomain,           // domain
-		isSecure,               // secure (true for HTTPS)
-		true,                   // httpOnly
+		"oidc_state", // name
+		state,        // value
+		600,          // maxAge (10 minutes)
+		"/",          // path
+		cookieDomain, // domain
+		isSecure,     // secure (true for HTTPS)
+		true,         // httpOnly
 		// SameSite=Lax allows the cookie to be sent during OIDC redirects
 	)
 	c.SetSameSite(http.SameSiteLaxMode)
@@ -159,7 +159,7 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 			groupsBytes, _ := json.Marshal(claims.Groups)
 			groupsJSON = string(groupsBytes)
 		}
-		
+
 		user = models.User{
 			Email:         claims.Email,
 			Name:          claims.Name,
@@ -207,13 +207,13 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 
 	// Set session cookie (HttpOnly, Secure, SameSite=Strict)
 	c.SetCookie(
-		"session_id",      // name
-		sessionID,         // value
-		3600*24,           // maxAge (24 hours)
-		"/",               // path
-		cookieDomain,      // domain
-		isSecure,          // secure
-		true,              // httpOnly
+		"session_id", // name
+		sessionID,    // value
+		3600*24,      // maxAge (24 hours)
+		"/",          // path
+		cookieDomain, // domain
+		isSecure,     // secure
+		true,         // httpOnly
 	)
 	c.SetSameSite(http.SameSiteStrictMode)
 
