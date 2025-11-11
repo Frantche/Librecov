@@ -22,7 +22,11 @@ func NewProjectHandler(db *gorm.DB) *ProjectHandler {
 
 // List returns all projects for the current user
 func (h *ProjectHandler) List(c *gin.Context) {
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	var projects []models.Project
 	query := h.db.Preload("User").Preload("ProjectShares")
@@ -53,7 +57,11 @@ func (h *ProjectHandler) List(c *gin.Context) {
 // Get returns a single project
 func (h *ProjectHandler) Get(c *gin.Context) {
 	id := c.Param("id")
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	var project models.Project
 	query := h.db.Preload("User").Preload("Builds").Preload("ProjectShares")
@@ -87,7 +95,11 @@ func (h *ProjectHandler) Get(c *gin.Context) {
 
 // Create creates a new project
 func (h *ProjectHandler) Create(c *gin.Context) {
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	var input struct {
 		Name          string `json:"name" binding:"required"`
@@ -119,7 +131,11 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 // Update updates a project
 func (h *ProjectHandler) Update(c *gin.Context) {
 	id := c.Param("id")
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	var project models.Project
 	query := h.db
@@ -169,7 +185,11 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 // Delete deletes a project
 func (h *ProjectHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	var project models.Project
 	query := h.db
@@ -198,7 +218,11 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 // GetShares returns all shares for a project
 func (h *ProjectHandler) GetShares(c *gin.Context) {
 	projectID := c.Param("id")
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	// Verify user owns the project
 	var project models.Project
@@ -228,7 +252,11 @@ func (h *ProjectHandler) GetShares(c *gin.Context) {
 // CreateShare shares a project with a group
 func (h *ProjectHandler) CreateShare(c *gin.Context) {
 	projectID := c.Param("id")
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	// Verify user owns the project
 	var project models.Project
@@ -301,7 +329,11 @@ func (h *ProjectHandler) CreateShare(c *gin.Context) {
 func (h *ProjectHandler) DeleteShare(c *gin.Context) {
 	projectID := c.Param("id")
 	shareID := c.Param("shareId")
-	user, _ := middleware.GetCurrentUser(c)
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
 
 	// Verify user owns the project
 	var project models.Project

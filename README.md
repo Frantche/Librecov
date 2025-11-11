@@ -209,7 +209,12 @@ If OIDC is not configured, the login page will display instructions for setting 
 OIDC_ISSUER=https://your-oidc-provider.com
 OIDC_CLIENT_ID=your-client-id
 OIDC_REDIRECT_URL=http://localhost:4000/auth/callback
+OIDC_SCOPES=openid,email,profile
+OIDC_GROUPS_CLAIM=groups
+FIRST_ADMIN_EMAIL=admin@example.com
 ```
+
+For detailed OIDC configuration including provider-specific setup (Keycloak, Azure AD, Okta, Auth0), see [OIDC_CONFIGURATION.md](./OIDC_CONFIGURATION.md).
 
 **Note:** The backend serves the frontend in production mode. When you build the Docker image or run `make build`, the frontend is built and served by the backend from the `/` route. All frontend routes are handled by the SPA, and API routes are available under `/api/v1`.
 

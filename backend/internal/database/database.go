@@ -63,6 +63,7 @@ func runMigrations(db *gorm.DB) error {
 		&models.User{},
 		&models.UserToken{},
 		&models.Project{},
+		&models.ProjectShare{},
 		&models.ProjectToken{},
 		&models.Build{},
 		&models.Job{},
