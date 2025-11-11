@@ -17,7 +17,7 @@ COPY backend/ ./backend/
 RUN CGO_ENABLED=0 GOOS=linux go build -o /librecov-server backend/cmd/server/main.go
 
 # Build stage for frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:25-alpine AS frontend-builder
 
 WORKDIR /app
 
