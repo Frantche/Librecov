@@ -1,8 +1,6 @@
 module github.com/Frantche/Librecov
 
-go 1.24.0
-
-toolchain go1.24.9
+go 1.24.10
 
 require (
 	github.com/coreos/go-oidc/v3 v3.16.0
