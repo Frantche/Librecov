@@ -4,6 +4,7 @@ export interface User {
   name: string
   admin: boolean
   token?: string
+  groups?: string
   created_at: string
   updated_at: string
 }
@@ -27,6 +28,15 @@ export interface Project {
   user_id: number
   user?: User
   builds?: Build[]
+  shares?: ProjectShare[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectShare {
+  id: number
+  project_id: number
+  group_name: string
   created_at: string
   updated_at: string
 }

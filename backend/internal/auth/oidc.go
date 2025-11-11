@@ -47,12 +47,38 @@ func NewOIDCProvider() (*OIDCProvider, error) {
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
 
+	// Get OIDC scopes from environment or use defaults
+	oidcScopes := os.Getenv("OIDC_SCOPES")
+	if oidcScopes == "" {
+		oidcScopes = "openid,email,groups"
+	}
+	
+	// Parse scopes from comma-separated string and convert to slice
+	scopes := []string{}
+	for _, scope := range splitAndTrim(oidcScopes, ",") {
+		if scope != "" {
+			scopes = append(scopes, scope)
+		}
+	}
+	
+	// Ensure openid is always included
+	hasOpenID := false
+	for _, s := range scopes {
+		if s == "openid" {
+			hasOpenID = true
+			break
+		}
+	}
+	if !hasOpenID {
+		scopes = append([]string{"openid"}, scopes...)
+	}
+
 	// Configure for public client (no client secret required)
 	config := oauth2.Config{
 		ClientID:    clientID,
 		RedirectURL: redirectURL,
 		Endpoint:    provider.Endpoint(),
-		Scopes:      []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:      scopes,
 	}
 
 	return &OIDCProvider{
@@ -112,18 +138,103 @@ func (p *OIDCProvider) VerifyIDToken(ctx context.Context, rawIDToken string) (*o
 
 // Claims represents the claims extracted from an ID token
 type Claims struct {
-	Sub           string `json:"sub"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
+	Sub           string   `json:"sub"`
+	Email         string   `json:"email"`
+	EmailVerified bool     `json:"email_verified"`
+	Name          string   `json:"name"`
+	Picture       string   `json:"picture"`
+	Groups        []string `json:"groups"` // Groups from OIDC token
 }
 
 // ExtractClaims extracts claims from an ID token
 func ExtractClaims(idToken *oidc.IDToken) (*Claims, error) {
-	var claims Claims
-	if err := idToken.Claims(&claims); err != nil {
+	// Get groups claim name from environment or use default
+	groupsClaimName := os.Getenv("OIDC_GROUPS_CLAIM")
+	if groupsClaimName == "" {
+		groupsClaimName = "groups"
+	}
+
+	// Extract all claims first
+	var allClaims map[string]interface{}
+	if err := idToken.Claims(&allClaims); err != nil {
 		return nil, fmt.Errorf("failed to extract claims: %w", err)
 	}
+
+	// Extract standard claims
+	var claims Claims
+	if err := idToken.Claims(&claims); err != nil {
+		return nil, fmt.Errorf("failed to extract standard claims: %w", err)
+	}
+
+	// Extract groups from the configured claim
+	if groupsInterface, ok := allClaims[groupsClaimName]; ok {
+		switch groups := groupsInterface.(type) {
+		case []interface{}:
+			for _, g := range groups {
+				if groupStr, ok := g.(string); ok {
+					claims.Groups = append(claims.Groups, groupStr)
+				}
+			}
+		case []string:
+			claims.Groups = groups
+		case string:
+			// Single group as string
+			claims.Groups = []string{groups}
+		}
+	}
+
 	return &claims, nil
+}
+
+// splitAndTrim splits a string by delimiter and trims spaces
+func splitAndTrim(s string, delimiter string) []string {
+	parts := []string{}
+	for _, part := range splitString(s, delimiter) {
+		trimmed := trimSpace(part)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
+}
+
+// splitString splits a string by delimiter
+func splitString(s string, delimiter string) []string {
+	if s == "" {
+		return []string{}
+	}
+	result := []string{}
+	current := ""
+	for i := 0; i < len(s); i++ {
+		if i+len(delimiter) <= len(s) && s[i:i+len(delimiter)] == delimiter {
+			result = append(result, current)
+			current = ""
+			i += len(delimiter) - 1
+		} else {
+			current += string(s[i])
+		}
+	}
+	result = append(result, current)
+	return result
+}
+
+// trimSpace removes leading and trailing whitespace
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+	
+	for start < end && isSpace(s[start]) {
+		start++
+	}
+	
+	for end > start && isSpace(s[end-1]) {
+		end--
+	}
+	
+	return s[start:end]
+}
+
+// isSpace checks if a byte is a whitespace character
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }

@@ -43,6 +43,38 @@
       </div>
     </div>
 
+    <!-- Project Sharing Section -->
+    <div class="settings-section">
+      <h3>Project Sharing</h3>
+      <p class="description">
+        Share this project with groups. Only groups from your OIDC token are available for sharing.
+      </p>
+
+      <button @click="showShareModal = true" class="btn btn-primary mb-2">
+        Share with Group
+      </button>
+
+      <div v-if="loadingShares" class="loading">Loading shares...</div>
+
+      <div v-else-if="shares.length === 0" class="empty-state">
+        <p>This project is not shared with any groups.</p>
+      </div>
+
+      <div v-else class="shares-list">
+        <div v-for="share in shares" :key="share.id" class="share-card card">
+          <div class="share-header">
+            <h4>{{ share.group_name }}</h4>
+            <button @click="deleteShare(share.id)" class="btn btn-danger btn-sm">
+              Remove
+            </button>
+          </div>
+          <div class="share-info">
+            <p><strong>Shared:</strong> {{ formatDate(share.created_at) }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Create Token Modal -->
     <div v-if="showCreateModal" class="modal" @click.self="showCreateModal = false">
       <div class="modal-content">
@@ -96,14 +128,49 @@
         </div>
       </div>
     </div>
+
+    <!-- Share Project Modal -->
+    <div v-if="showShareModal" class="modal" @click.self="showShareModal = false">
+      <div class="modal-content">
+        <h3>Share Project with Group</h3>
+        <form @submit.prevent="createShare">
+          <div class="form-group">
+            <label for="group-name">Group Name</label>
+            <select
+              id="group-name"
+              v-model="selectedGroup"
+              required
+              class="form-input"
+            >
+              <option value="">Select a group...</option>
+              <option v-for="group in userGroups" :key="group" :value="group">
+                {{ group }}
+              </option>
+            </select>
+            <small>Only groups from your OIDC token are available for selection.</small>
+          </div>
+          <div v-if="userGroups.length === 0" class="warning-box">
+            <p><strong>No groups available.</strong> You don't have any groups in your OIDC token.</p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="showShareModal = false" class="btn btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="userGroups.length === 0">
+              Share Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { apiClient } from '../services/api'
-import type { Project } from '../types'
+import { apiClient, fetchProjectShares, createProjectShare, deleteProjectShare, fetchUserGroups } from '../services/api'
+import type { Project, ProjectShare } from '../types'
 
 interface Token {
   id: number
@@ -118,9 +185,14 @@ const projectId = computed(() => route.params.id as string)
 
 const project = ref<Project | null>(null)
 const tokens = ref<Token[]>([])
+const shares = ref<ProjectShare[]>([])
+const userGroups = ref<string[]>([])
 const loadingTokens = ref(true)
+const loadingShares = ref(true)
 const showCreateModal = ref(false)
+const showShareModal = ref(false)
 const newTokenName = ref('')
+const selectedGroup = ref('')
 const newlyCreatedToken = ref<Token | null>(null)
 const copied = ref(false)
 
@@ -144,6 +216,25 @@ const fetchTokens = async () => {
     console.error('Failed to fetch tokens:', error)
   } finally {
     loadingTokens.value = false
+  }
+}
+
+const fetchShares = async () => {
+  try {
+    loadingShares.value = true
+    shares.value = await fetchProjectShares(Number(projectId.value))
+  } catch (error) {
+    console.error('Failed to fetch shares:', error)
+  } finally {
+    loadingShares.value = false
+  }
+}
+
+const loadUserGroups = async () => {
+  try {
+    userGroups.value = await fetchUserGroups()
+  } catch (error) {
+    console.error('Failed to fetch user groups:', error)
   }
 }
 
@@ -173,6 +264,37 @@ const deleteToken = async (tokenId: number) => {
   } catch (error) {
     console.error('Failed to delete token:', error)
     alert('Failed to delete token. Please try again.')
+  }
+}
+
+const createShare = async () => {
+  if (!selectedGroup.value) {
+    return
+  }
+
+  try {
+    await createProjectShare(Number(projectId.value), selectedGroup.value)
+    showShareModal.value = false
+    selectedGroup.value = ''
+    await fetchShares()
+  } catch (error: any) {
+    console.error('Failed to create share:', error)
+    const errorMsg = error.response?.data?.error || 'Failed to create share. Please try again.'
+    alert(errorMsg)
+  }
+}
+
+const deleteShare = async (shareId: number) => {
+  if (!confirm('Are you sure you want to remove this group share?')) {
+    return
+  }
+
+  try {
+    await deleteProjectShare(Number(projectId.value), shareId)
+    await fetchShares()
+  } catch (error) {
+    console.error('Failed to delete share:', error)
+    alert('Failed to delete share. Please try again.')
   }
 }
 
@@ -208,6 +330,8 @@ const formatDate = (dateString: string) => {
 onMounted(() => {
   fetchProject()
   fetchTokens()
+  fetchShares()
+  loadUserGroups()
 })
 </script>
 
@@ -435,5 +559,45 @@ onMounted(() => {
   border: 1px solid #ddd;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.shares-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.share-card {
+  padding: 1.5rem;
+}
+
+.share-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.share-header h4 {
+  margin: 0;
+}
+
+.share-info p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+.warning-box {
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  color: #856404;
+}
+
+.warning-box p {
+  margin: 0;
 }
 </style>

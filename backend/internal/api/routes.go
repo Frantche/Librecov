@@ -21,12 +21,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	authGroup := router.Group("/auth")
 	{
 		authHandler := NewAuthHandler(db, oidcProvider)
-		authGroup.GET("/config", authHandler.GetConfig)       // Public endpoint for auth config
-		authGroup.GET("/login", authHandler.Login)            // Initiate OIDC login
-		authGroup.GET("/callback", authHandler.Callback)      // OIDC callback handler
-		authGroup.POST("/logout", authHandler.Logout)         // Logout
+		authGroup.GET("/config", authHandler.GetConfig)        // Public endpoint for auth config
+		authGroup.GET("/login", authHandler.Login)             // Initiate OIDC login
+		authGroup.GET("/callback", authHandler.Callback)       // OIDC callback handler
+		authGroup.POST("/logout", authHandler.Logout)          // Logout
 		authGroup.POST("/refresh", authHandler.RefreshSession) // Refresh session
 		authGroup.GET("/me", middleware.AuthMiddleware(), authHandler.Me)
+		authGroup.GET("/groups", middleware.AuthMiddleware(), authHandler.GetUserGroups)
 	}
 
 	// API v1 routes
@@ -58,6 +59,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			protected.POST("/projects/:id/tokens", server.CreateProjectToken)
 			protected.DELETE("/projects/:id/tokens/:tokenId", server.DeleteProjectToken)
 
+			// Project shares
+			protected.GET("/projects/:id/shares", projectHandler.GetShares)
+			protected.POST("/projects/:id/shares", projectHandler.CreateShare)
+			protected.DELETE("/projects/:id/shares/:shareId", projectHandler.DeleteShare)
+
 			// Builds
 			buildHandler := NewBuildHandler(db)
 			protected.GET("/projects/:id/builds", buildHandler.List)
@@ -83,6 +89,9 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			admin.GET("/users/:id", userHandler.Get)
 			admin.PUT("/users/:id", userHandler.Update)
 			admin.DELETE("/users/:id", userHandler.Delete)
+
+			projectHandler := NewProjectHandler(db)
+			admin.GET("/projects", projectHandler.ListAll)
 		}
 	}
 
@@ -98,7 +107,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	// Serve frontend static files in production
 	router.Static("/assets", "./frontend/dist/assets")
 	router.StaticFile("/favicon.ico", "./frontend/dist/favicon.ico")
-	
+
 	// Serve index.html for all unmatched routes (SPA fallback)
 	router.NoRoute(func(c *gin.Context) {
 		c.File("./frontend/dist/index.html")

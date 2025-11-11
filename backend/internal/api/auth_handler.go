@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -59,13 +60,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Set state cookie (for CSRF validation)
 	c.SetCookie(
-		"oidc_state",           // name
-		state,                  // value
-		600,                    // maxAge (10 minutes)
-		"/",                    // path
-		cookieDomain,           // domain
-		isSecure,               // secure (true for HTTPS)
-		true,                   // httpOnly
+		"oidc_state", // name
+		state,        // value
+		600,          // maxAge (10 minutes)
+		"/",          // path
+		cookieDomain, // domain
+		isSecure,     // secure (true for HTTPS)
+		true,         // httpOnly
 		// SameSite=Lax allows the cookie to be sent during OIDC redirects
 	)
 	c.SetSameSite(http.SameSiteLaxMode)
@@ -153,12 +154,19 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	result := h.db.Where("oidc_subject = ?", claims.Sub).First(&user)
 	if result.Error == gorm.ErrRecordNotFound {
 		// Create new user
+		groupsJSON := "[]"
+		if len(claims.Groups) > 0 {
+			groupsBytes, _ := json.Marshal(claims.Groups)
+			groupsJSON = string(groupsBytes)
+		}
+
 		user = models.User{
 			Email:         claims.Email,
 			Name:          claims.Name,
 			OIDCSubject:   claims.Sub,
 			EmailVerified: claims.EmailVerified,
 			Token:         generateRandomString(32),
+			Groups:        groupsJSON,
 		}
 
 		// If FIRST_ADMIN_EMAIL is set and matches this user's email, mark as admin
@@ -179,6 +187,14 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	} else {
+		// Update existing user's groups
+		groupsJSON := "[]"
+		if len(claims.Groups) > 0 {
+			groupsBytes, _ := json.Marshal(claims.Groups)
+			groupsJSON = string(groupsBytes)
+		}
+		user.Groups = groupsJSON
+		h.db.Save(&user)
 		log.Printf("User found: %s (ID: %d)", user.Email, user.ID)
 	}
 
@@ -191,13 +207,13 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 
 	// Set session cookie (HttpOnly, Secure, SameSite=Strict)
 	c.SetCookie(
-		"session_id",      // name
-		sessionID,         // value
-		3600*24,           // maxAge (24 hours)
-		"/",               // path
-		cookieDomain,      // domain
-		isSecure,          // secure
-		true,              // httpOnly
+		"session_id", // name
+		sessionID,    // value
+		3600*24,      // maxAge (24 hours)
+		"/",          // path
+		cookieDomain, // domain
+		isSecure,     // secure
+		true,         // httpOnly
 	)
 	c.SetSameSite(http.SameSiteStrictMode)
 
@@ -281,6 +297,22 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+// GetUserGroups returns the groups for the current user
+func (h *AuthHandler) GetUserGroups(c *gin.Context) {
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	var groups []string
+	if user.Groups != "" {
+		json.Unmarshal([]byte(user.Groups), &groups)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"groups": groups})
 }
 
 // GetConfig returns authentication configuration including OIDC info
