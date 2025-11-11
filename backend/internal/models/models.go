@@ -1,6 +1,8 @@
 package models
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,7 +23,34 @@ type User struct {
 	EmailVerified bool   `gorm:"default:false" json:"email_verified"`
 
 	// Relationships
-	Projects []Project `gorm:"foreignKey:UserID" json:"projects,omitempty"`
+	Projects   []Project    `gorm:"foreignKey:UserID" json:"projects,omitempty"`
+	UserTokens []UserToken  `gorm:"foreignKey:UserID" json:"tokens,omitempty"`
+}
+
+// UserToken represents an API token for a user
+type UserToken struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	UserID    uint       `gorm:"not null;index" json:"user_id"`
+	Name      string     `gorm:"not null" json:"name"`
+	Token     string     `gorm:"uniqueIndex;not null" json:"token,omitempty"`
+	LastUsed  *time.Time `json:"last_used,omitempty"`
+
+	// Relationships
+	User User `gorm:"foreignKey:UserID" json:"-"`
+}
+
+// GenerateToken generates a secure random token
+func GenerateToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
 }
 
 // Project represents a code coverage project
@@ -39,8 +68,25 @@ type Project struct {
 	UserID        uint    `json:"user_id"`
 
 	// Relationships
-	User   User    `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	Builds []Build `gorm:"foreignKey:ProjectID" json:"builds,omitempty"`
+	User          User           `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Builds        []Build        `gorm:"foreignKey:ProjectID" json:"builds,omitempty"`
+	ProjectTokens []ProjectToken `gorm:"foreignKey:ProjectID" json:"tokens,omitempty"`
+}
+
+// ProjectToken represents an API token for a project
+type ProjectToken struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	ProjectID uint       `gorm:"not null;index" json:"project_id"`
+	Name      string     `gorm:"not null" json:"name"`
+	Token     string     `gorm:"uniqueIndex;not null" json:"token,omitempty"`
+	LastUsed  *time.Time `json:"last_used,omitempty"`
+
+	// Relationships
+	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
 }
 
 // Build represents a coverage build for a project

@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { apiClient } from '../services/api'
 import type { Project } from '../types'
@@ -105,6 +105,15 @@ onMounted(() => {
   if (authStore.isAuthenticated) {
     fetchProjects()
   } else {
+    loading.value = false
+  }
+})
+
+watch(() => authStore.isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    fetchProjects()
+  } else {
+    projects.value = []
     loading.value = false
   }
 })

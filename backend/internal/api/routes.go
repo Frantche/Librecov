@@ -39,6 +39,12 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 		protected := v1.Group("")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			// User tokens
+			server := &Server{db: db}
+			protected.GET("/user/tokens", server.GetUserTokens)
+			protected.POST("/user/tokens", server.CreateUserToken)
+			protected.DELETE("/user/tokens/:id", server.DeleteUserToken)
+
 			// Projects
 			projectHandler := NewProjectHandler(db)
 			protected.GET("/projects", projectHandler.List)
@@ -46,6 +52,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			protected.GET("/projects/:id", projectHandler.Get)
 			protected.PUT("/projects/:id", projectHandler.Update)
 			protected.DELETE("/projects/:id", projectHandler.Delete)
+
+			// Project tokens
+			protected.GET("/projects/:id/tokens", server.GetProjectTokens)
+			protected.POST("/projects/:id/tokens", server.CreateProjectToken)
+			protected.DELETE("/projects/:id/tokens/:tokenId", server.DeleteProjectToken)
 
 			// Builds
 			buildHandler := NewBuildHandler(db)

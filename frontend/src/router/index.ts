@@ -16,9 +16,21 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue'),
     },
     {
+      path: '/tokens',
+      name: 'tokens',
+      component: () => import('../views/TokensView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/projects/:id',
       name: 'project',
       component: () => import('../views/ProjectView.vue'),
+    },
+    {
+      path: '/projects/:id/settings',
+      name: 'project-settings',
+      component: () => import('../views/ProjectSettingsView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/builds/:id',

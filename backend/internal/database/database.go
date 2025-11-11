@@ -61,7 +61,9 @@ func runMigrations(db *gorm.DB) error {
 	// Run auto migrations
 	return db.AutoMigrate(
 		&models.User{},
+		&models.UserToken{},
 		&models.Project{},
+		&models.ProjectToken{},
 		&models.Build{},
 		&models.Job{},
 		&models.JobFile{},
