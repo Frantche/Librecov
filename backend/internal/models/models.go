@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -56,7 +57,7 @@ func GenerateToken() (string, error) {
 
 // Project represents a code coverage project
 type Project struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
+	ID        string         `gorm:"type:varchar(36);primarykey" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
@@ -75,6 +76,14 @@ type Project struct {
 	ProjectShares []ProjectShare `gorm:"foreignKey:ProjectID" json:"shares,omitempty"`
 }
 
+// BeforeCreate hook to generate UUID v7 for new projects
+func (p *Project) BeforeCreate(tx *gorm.DB) error {
+	if p.ID == "" {
+		p.ID = uuid.NewString()
+	}
+	return nil
+}
+
 // ProjectShare represents group-based sharing of a project
 type ProjectShare struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
@@ -82,7 +91,7 @@ type ProjectShare struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	ProjectID uint   `gorm:"not null;index" json:"project_id"`
+	ProjectID string `gorm:"type:varchar(36);not null;index" json:"project_id"`
 	GroupName string `gorm:"not null;index" json:"group_name"`
 
 	// Relationships
@@ -96,7 +105,7 @@ type ProjectToken struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	ProjectID uint       `gorm:"not null;index" json:"project_id"`
+	ProjectID string     `gorm:"type:varchar(36);not null;index" json:"project_id"`
 	Name      string     `gorm:"not null" json:"name"`
 	Token     string     `gorm:"uniqueIndex;not null" json:"token,omitempty"`
 	LastUsed  *time.Time `json:"last_used,omitempty"`
@@ -112,7 +121,7 @@ type Build struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	ProjectID    uint    `gorm:"not null;index" json:"project_id"`
+	ProjectID    string  `gorm:"type:varchar(36);not null;index" json:"project_id"`
 	BuildNum     int     `gorm:"not null" json:"build_num"`
 	Branch       string  `json:"branch"`
 	CommitSHA    string  `json:"commit_sha"`

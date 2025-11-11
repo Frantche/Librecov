@@ -58,6 +58,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			protected.GET("/projects/:id/tokens", server.GetProjectTokens)
 			protected.POST("/projects/:id/tokens", server.CreateProjectToken)
 			protected.DELETE("/projects/:id/tokens/:tokenId", server.DeleteProjectToken)
+			protected.POST("/projects/:id/refresh-token", server.RefreshProjectToken)
 
 			// Project shares
 			protected.GET("/projects/:id/shares", projectHandler.GetShares)

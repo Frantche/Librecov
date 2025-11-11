@@ -49,7 +49,7 @@ func TestProjectModel(t *testing.T) {
 
 func TestBuildModel(t *testing.T) {
 	build := Build{
-		ProjectID:    1,
+		ProjectID:    "test-project-uuid",
 		BuildNum:     42,
 		Branch:       "main",
 		CommitSHA:    "abc123",
@@ -135,15 +135,15 @@ func TestProjectRelationships(t *testing.T) {
 
 func TestBuildRelationships(t *testing.T) {
 	build := Build{
-		ProjectID: 1,
+		ProjectID: "test-project-uuid",
 		Project: Project{
-			ID:   1,
+			ID:   "test-project-uuid",
 			Name: "Test Project",
 		},
 	}
 
-	if build.Project.ID != 1 {
-		t.Errorf("Expected project ID to be 1, got %d", build.Project.ID)
+	if build.Project.ID != "test-project-uuid" {
+		t.Errorf("Expected project ID to be test-project-uuid, got %s", build.Project.ID)
 	}
 }
 
