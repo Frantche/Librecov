@@ -167,11 +167,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { apiClient, refreshProjectToken } from '../services/api'
 import type { Project, Build } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const projectId = computed(() => route.params.id as string)
 
 const project = ref<Project | null>(null)
@@ -196,7 +197,11 @@ const fetchProject = async () => {
   try {
     const response = await apiClient.get(`/projects/${projectId.value}`)
     project.value = response.data
-  } catch (error) {
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      router.replace('/')
+      return
+    }
     console.error('Failed to fetch project:', error)
   }
 }
