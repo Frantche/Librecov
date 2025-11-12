@@ -180,6 +180,36 @@ export async function fetchBuild(buildId: string) {
   }
 }
 
+export async function fetchJob(jobId: string) {
+  try {
+    const response = await apiClient.get(`/jobs/${jobId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch job:', error)
+    throw error
+  }
+}
+
+export async function fetchJobFiles(jobId: string) {
+  try {
+    const response = await apiClient.get(`/jobs/${jobId}/files`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch job files:', error)
+    throw error
+  }
+}
+
+export async function fetchJobFile(fileId: string) {
+  try {
+    const response = await apiClient.get(`/files/${fileId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch job file:', error)
+    throw error
+  }
+}
+
 export default apiClient
 
 // Refresh project token
