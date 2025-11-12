@@ -21,36 +21,129 @@ echo ""
 echo "Step 1: Create a test project via database"
 echo "-------------------------------------------"
 
+# Wait for LibreCov application to be fully ready
+echo "Waiting for LibreCov application to be ready..."
+MAX_ATTEMPTS=30
+ATTEMPT=1
+while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+    if curl -s -f "$LIBRECOV_URL/health" > /dev/null 2>&1; then
+        echo "✅ LibreCov application is ready!"
+        break
+    fi
+    
+    if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+        echo "❌ LibreCov application failed to start after $MAX_ATTEMPTS attempts"
+        echo "Application logs:"
+        docker logs librecov-librecov-1 2>/dev/null || echo "Could not retrieve logs"
+        exit 1
+    fi
+    
+    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS - waiting for LibreCov..."
+    sleep 3
+    ATTEMPT=$((ATTEMPT + 1))
+done
+
+# Wait a bit more for migrations to complete
+echo "Waiting for database migrations to complete..."
+sleep 5
+
+# First, verify database connection and tables exist
+echo "Checking database connectivity..."
+docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "SELECT 1;" > /dev/null || {
+    echo "❌ Cannot connect to database"
+    exit 1
+}
+echo "✅ Database connection OK"
+
+echo "Checking if required tables exist..."
+TABLES_EXIST=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'projects');")
+if [ "$TABLES_EXIST" -lt "2" ]; then
+    echo "❌ Required tables (users, projects) do not exist. Waiting for migrations..."
+    
+    # Wait for migrations to complete
+    MAX_MIGRATION_ATTEMPTS=20
+    MIGRATION_ATTEMPT=1
+    while [ $MIGRATION_ATTEMPT -le $MAX_MIGRATION_ATTEMPTS ]; do
+        TABLES_EXIST=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'projects');")
+        if [ "$TABLES_EXIST" -ge "2" ]; then
+            echo "✅ Tables created after migration attempt $MIGRATION_ATTEMPT"
+            break
+        fi
+        
+        if [ $MIGRATION_ATTEMPT -eq $MAX_MIGRATION_ATTEMPTS ]; then
+            echo "❌ Tables still don't exist after $MAX_MIGRATION_ATTEMPTS attempts"
+            echo "Database tables:"
+            docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+            exit 1
+        fi
+        
+        echo "Migration attempt $MIGRATION_ATTEMPT/$MAX_MIGRATION_ATTEMPTS - waiting..."
+        sleep 5
+        MIGRATION_ATTEMPT=$((MIGRATION_ATTEMPT + 1))
+    done
+else
+    echo "✅ Required tables exist"
+fi
+
 # Create a simple project directly in the database for testing
-docker exec librecov-db-1 psql -U postgres -d librecov_dev <<EOF
--- Create a test user if not exists
+echo "Creating test user and project..."
+
+# Create user first
+docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "
 INSERT INTO users (email, name, admin, token, created_at, updated_at)
 VALUES ('test@example.com', 'Test User', true, 'test-user-token-12345', NOW(), NOW())
 ON CONFLICT (email) DO NOTHING;
+" || {
+    echo "❌ Failed to create user"
+    exit 1
+}
 
--- Get the user ID and create a test project
-DO \$\$
-DECLARE
-    v_user_id INTEGER;
-    v_project_id VARCHAR(36);
-BEGIN
-    SELECT id INTO v_user_id FROM users WHERE email = 'test@example.com';
+# Get user ID
+USER_ID=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT id FROM users WHERE email = 'test@example.com';")
+USER_ID=$(echo "$USER_ID" | tr -d ' ')
+
+if [ -z "$USER_ID" ]; then
+    echo "❌ Could not get user ID"
+    exit 1
+fi
+
+echo "User ID: $USER_ID"
+
+# Create project if it doesn't exist
+PROJECT_EXISTS=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT COUNT(*) FROM projects WHERE token = 'test-project-token-67890';")
+PROJECT_EXISTS=$(echo "$PROJECT_EXISTS" | tr -d ' ')
+
+if [ "$PROJECT_EXISTS" -eq "0" ]; then
+    echo "Creating new test project..."
+    PROJECT_ID=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT gen_random_uuid()::text;")
+    PROJECT_ID=$(echo "$PROJECT_ID" | tr -d ' ')
     
-    -- Generate a UUID for the project
-    v_project_id := gen_random_uuid()::text;
-    
-    -- Create a test project if not exists
+    docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "
     INSERT INTO projects (id, name, token, current_branch, user_id, coverage_rate, created_at, updated_at)
-    VALUES (v_project_id, 'Librecov Test Project', 'test-project-token-67890', 'main', v_user_id, 0.0, NOW(), NOW())
-    ON CONFLICT (token) DO NOTHING;
-END \$\$;
-
--- Show the project
-SELECT id, name, token, current_branch FROM projects WHERE token = 'test-project-token-67890';
-EOF
+    VALUES ('$PROJECT_ID', 'Librecov Test Project', 'test-project-token-67890', 'main', $USER_ID, 0.0, NOW(), NOW());
+    " || {
+        echo "❌ Failed to create project"
+        exit 1
+    }
+    echo "✅ Created project with ID: $PROJECT_ID"
+else
+    echo "✅ Project already exists"
+fi
 
 echo ""
-echo "✓ Test project created with token: test-project-token-67890"
+echo "✓ Test project setup completed with token: test-project-token-67890"
+echo ""
+
+# Verify the project was created
+echo "Verifying project creation..."
+PROJECT_EXISTS=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT COUNT(*) FROM projects WHERE token = 'test-project-token-67890';")
+if [ "$PROJECT_EXISTS" -eq "0" ]; then
+    echo "❌ Project was not created successfully"
+    echo "Checking what projects exist:"
+    docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "SELECT id, name, token FROM projects LIMIT 5;"
+    exit 1
+fi
+echo "✅ Project verified in database"
 echo ""
 
 # Test Go coverage upload
@@ -59,8 +152,7 @@ echo "-------------------------------------------"
 export PROJECT_TOKEN="test-project-token-67890"
 export LIBRECOV_URL="$LIBRECOV_URL"
 
-cd /home/coder/Librecov
-./scripts/upload-coverage-go.sh
+"$(dirname "${BASH_SOURCE[0]}")/upload-coverage-go.sh"
 
 echo ""
 echo "Step 3: Verify upload via API"
