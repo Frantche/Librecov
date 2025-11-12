@@ -120,7 +120,7 @@ jobs:
 
           REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
 
-          IMAGE="ghcr.io/${{ REPO_LOWER }}"
+          IMAGE="ghcr.io/${REPO_LOWER}"
 
           TAGS="${IMAGE}:${VERSION},${IMAGE}:latest"
 
@@ -170,4 +170,4 @@ jobs:
         run: |
           CHART_VERSION="${{ needs.version.outputs.version }}"
           REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
-          helm push .helm-packages/librecov-helm-${CHART_VERSION}.tgz oci://ghcr.io/${{ REPO_LOWER }}
+          helm push .helm-packages/librecov-helm-${CHART_VERSION}.tgz oci://ghcr.io/${REPO_LOWER}
