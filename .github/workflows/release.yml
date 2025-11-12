@@ -1,5 +1,9 @@
 name: Release
 
+concurrency:
+  group: release-workflow
+  cancel-in-progress: false
+
 on:
   push:
     branches: [main]
@@ -63,7 +67,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add helm/librecov/Chart.yaml helm/librecov/values.yaml
-          git commit -m "chore: bump version to ${{ needs.version.outputs.version }}"
+          git commit -m "chore: bump version to ${{ needs.version.outputs.version }} [skip ci]"
           git push
 
   push-tag:
