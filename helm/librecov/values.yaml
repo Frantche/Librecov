@@ -3,26 +3,20 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
-
 image:
   repository: ghcr.io/frantche/librecov
   pullPolicy: IfNotPresent
   tag: ""
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
-
 serviceAccount:
   create: true
   annotations: {}
   name: ""
-
 podAnnotations: {}
-
 podSecurityContext:
   fsGroup: 2000
-
 securityContext:
   capabilities:
     drop:
@@ -30,18 +24,15 @@ securityContext:
   readOnlyRootFilesystem: false
   runAsNonRoot: true
   runAsUser: 1000
-
 service:
   type: ClusterIP
   port: 4000
-
 ingress:
   enabled: false
   className: ""
-  annotations:
-    {}
-    # kubernetes.io/ingress.class: nginx
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  annotations: {}
+  # kubernetes.io/ingress.class: nginx
+  # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: librecov.local
       paths:
@@ -51,7 +42,6 @@ ingress:
   #  - secretName: librecov-tls
   #    hosts:
   #      - librecov.local
-
 resources:
   limits:
     cpu: 500m
@@ -59,20 +49,15 @@ resources:
   requests:
     cpu: 250m
     memory: 256Mi
-
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
-
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}
-
 # PostgreSQL configuration
 postgresql:
   enabled: true
@@ -84,7 +69,6 @@ postgresql:
     persistence:
       enabled: true
       size: 8Gi
-
 # External PostgreSQL (when postgresql.enabled is false)
 externalDatabase:
   host: ""
@@ -92,7 +76,6 @@ externalDatabase:
   user: postgres
   password: ""
   database: librecov
-
 # Application configuration
 config:
   port: 4000
@@ -103,7 +86,6 @@ config:
     clientId: ""
     clientSecret: ""
     redirectUrl: ""
-
 env: []
 # Additional environment variables
 # - name: CUSTOM_VAR
@@ -115,3 +97,5 @@ envFrom: []
 #     name: my-configmap
 # - secretRef:
 #     name: my-secret
+
+tag: 0.0.1
