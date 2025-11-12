@@ -117,7 +117,10 @@ jobs:
         id: tags
         run: |
           VERSION="${{ needs.version.outputs.version }}"
-          IMAGE="ghcr.io/${{ github.repository }}"
+
+          REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+
+          IMAGE="ghcr.io/${{ REPO_LOWER }}"
 
           TAGS="${IMAGE}:${VERSION},${IMAGE}:latest"
 
@@ -166,4 +169,5 @@ jobs:
       - name: Push Helm chart to GHCR
         run: |
           CHART_VERSION="${{ needs.version.outputs.version }}"
-          helm push .helm-packages/librecov-helm-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}
+          REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          helm push .helm-packages/librecov-helm-${CHART_VERSION}.tgz oci://ghcr.io/${{ REPO_LOWER }}

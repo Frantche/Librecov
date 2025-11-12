@@ -43,6 +43,7 @@ func (h *BuildHandler) Get(c *gin.Context) {
 	var build models.Build
 	if err := h.db.Preload("Project").
 		Preload("Jobs").
+		Preload("Jobs.Files").
 		First(&build, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Build not found"})

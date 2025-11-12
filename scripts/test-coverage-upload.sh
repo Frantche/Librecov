@@ -199,6 +199,51 @@ ORDER BY j.created_at DESC
 LIMIT 5;"
 
 echo ""
+echo "Step 4: Test authenticated API endpoints"
+echo "-------------------------------------------"
+
+# Get the latest build ID for testing
+BUILD_ID=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "
+SELECT b.id
+FROM builds b
+JOIN projects p ON p.id = b.project_id
+WHERE p.token = 'test-project-token-67890'
+ORDER BY b.created_at DESC
+LIMIT 1;")
+
+BUILD_ID=$(echo "$BUILD_ID" | tr -d ' ')
+
+# Get the project ID for testing
+PROJECT_ID=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "SELECT id FROM projects WHERE token = 'test-project-token-67890';")
+PROJECT_ID=$(echo "$PROJECT_ID" | tr -d ' ')
+
+if [ -n "$BUILD_ID" ]; then
+    echo "Testing build API endpoint (should require authentication)..."
+    BUILD_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "$LIBRECOV_URL/api/v1/builds/$BUILD_ID")
+    HTTP_STATUS=$(echo "$BUILD_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+    RESPONSE_BODY=$(echo "$BUILD_RESPONSE" | sed '/HTTP_STATUS:/d')
+    
+    if [ "$HTTP_STATUS" -eq "401" ]; then
+        echo "✅ Build endpoint correctly requires authentication (401 Unauthorized)"
+    else
+        echo "❌ Build endpoint should require authentication but got status $HTTP_STATUS"
+        echo "Response: $RESPONSE_BODY"
+    fi
+    
+    echo "Testing project builds endpoint (should require authentication)..."
+    PROJECT_BUILDS_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "$LIBRECOV_URL/api/v1/projects/$PROJECT_ID/builds")
+    HTTP_STATUS=$(echo "$PROJECT_BUILDS_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+    
+    if [ "$HTTP_STATUS" -eq "401" ]; then
+        echo "✅ Project builds endpoint correctly requires authentication (401 Unauthorized)"
+    else
+        echo "❌ Project builds endpoint should require authentication but got status $HTTP_STATUS"
+    fi
+else
+    echo "⚠️ No build found to test authenticated endpoints"
+fi
+
+echo ""
 echo "========================================="
 echo "✓ Coverage upload test completed!"
 echo "========================================="

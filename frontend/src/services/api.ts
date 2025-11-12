@@ -170,6 +170,16 @@ export async function fetchUserGroups() {
   }
 }
 
+export async function fetchBuild(buildId: string) {
+  try {
+    const response = await apiClient.get(`/builds/${buildId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch build:', error)
+    throw error
+  }
+}
+
 export default apiClient
 
 // Refresh project token
