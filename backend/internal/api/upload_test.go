@@ -138,7 +138,7 @@ func TestUploadCoverageSuccess(t *testing.T) {
 
 	// Verify project coverage was updated
 	var updatedProject models.Project
-	db.First(&updatedProject, project.ID)
+	db.First(&updatedProject, "id = ?", project.ID)
 	if updatedProject.CoverageRate == 0 {
 		t.Error("Expected project coverage rate to be updated")
 	}

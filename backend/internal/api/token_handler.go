@@ -111,11 +111,7 @@ func (s *Server) GetProjectTokens(c *gin.Context) {
 		return
 	}
 
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-		return
-	}
+	projectID := c.Param("id")
 
 	// Check project ownership
 	var project models.Project
@@ -146,11 +142,7 @@ func (s *Server) CreateProjectToken(c *gin.Context) {
 		return
 	}
 
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-		return
-	}
+	projectID := c.Param("id")
 
 	// Check project ownership
 	var project models.Project
@@ -176,7 +168,7 @@ func (s *Server) CreateProjectToken(c *gin.Context) {
 	}
 
 	token := models.ProjectToken{
-		ProjectID: uint(projectID),
+		ProjectID: projectID,
 		Name:      req.Name,
 		Token:     tokenStr,
 	}
@@ -198,11 +190,7 @@ func (s *Server) DeleteProjectToken(c *gin.Context) {
 		return
 	}
 
-	projectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-		return
-	}
+	projectID := c.Param("id")
 
 	tokenID, err := strconv.ParseUint(c.Param("tokenId"), 10, 32)
 	if err != nil {
@@ -229,4 +217,42 @@ func (s *Server) DeleteProjectToken(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Token deleted successfully"})
+}
+
+// RefreshProjectToken regenerates a project token
+func (s *Server) RefreshProjectToken(c *gin.Context) {
+userID, exists := c.Get("user_id")
+if !exists {
+c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+return
+}
+
+projectID := c.Param("id")
+
+// Check project ownership
+var project models.Project
+if err := s.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
+c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+return
+}
+
+// Generate new token
+newToken, err := models.GenerateToken()
+if err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+return
+}
+
+// Update project token
+project.Token = newToken
+if err := s.db.Save(&project).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh token"})
+return
+}
+
+// Return the new token
+c.JSON(http.StatusOK, gin.H{
+"message": "Token refreshed successfully",
+"token":   newToken,
+})
 }

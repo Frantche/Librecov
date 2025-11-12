@@ -19,7 +19,7 @@ export interface AuthConfig {
 }
 
 export interface Project {
-  id: number
+  id: string
   name: string
   token: string
   current_branch: string
@@ -35,15 +35,16 @@ export interface Project {
 
 export interface ProjectShare {
   id: number
-  project_id: number
+  project_id: string
   group_name: string
   created_at: string
   updated_at: string
+  is_user_member?: boolean
 }
 
 export interface Build {
   id: number
-  project_id: number
+  project_id: string
   build_num: number
   branch: string
   commit_sha: string
@@ -81,4 +82,13 @@ export interface JobFile {
 
 export interface RefreshSessionResponse {
   token: string
+}
+
+export interface ProjectToken {
+  id: number
+  project_id: string
+  name: string
+  token?: string
+  created_at: string
+  last_used?: string
 }

@@ -67,8 +67,39 @@ export async function fetchAllProjects() {
   }
 }
 
+// Admin user management API methods
+export async function promoteUserToAdmin(userId: string) {
+  try {
+    const response = await apiClient.put(`/admin/users/${userId}`, { admin: true })
+    return response.data
+  } catch (error) {
+    console.error('Failed to promote user to admin:', error)
+    throw error
+  }
+}
+
+export async function demoteUserFromAdmin(userId: string) {
+  try {
+    const response = await apiClient.put(`/admin/users/${userId}`, { admin: false })
+    return response.data
+  } catch (error) {
+    console.error('Failed to demote user from admin:', error)
+    throw error
+  }
+}
+
+export async function deleteUser(userId: string) {
+  try {
+    const response = await apiClient.delete(`/admin/users/${userId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to delete user:', error)
+    throw error
+  }
+}
+
 // Project sharing API methods
-export async function fetchProjectShares(projectId: number) {
+export async function fetchProjectShares(projectId: string) {
   try {
     const response = await apiClient.get(`/projects/${projectId}/shares`)
     return response.data
@@ -78,7 +109,7 @@ export async function fetchProjectShares(projectId: number) {
   }
 }
 
-export async function createProjectShare(projectId: number, groupName: string) {
+export async function createProjectShare(projectId: string, groupName: string) {
   try {
     const response = await apiClient.post(`/projects/${projectId}/shares`, { group_name: groupName })
     return response.data
@@ -88,12 +119,42 @@ export async function createProjectShare(projectId: number, groupName: string) {
   }
 }
 
-export async function deleteProjectShare(projectId: number, shareId: number) {
+export async function deleteProjectShare(projectId: string, shareId: number) {
   try {
     const response = await apiClient.delete(`/projects/${projectId}/shares/${shareId}`)
     return response.data
   } catch (error) {
     console.error('Failed to delete project share:', error)
+    throw error
+  }
+}
+
+export async function transferProjectOwnership(projectId: string, newOwnerId: string) {
+  try {
+    const response = await apiClient.post(`/projects/${projectId}/transfer-ownership`, { new_owner_id: newOwnerId })
+    return response.data
+  } catch (error) {
+    console.error('Failed to transfer project ownership:', error)
+    throw error
+  }
+}
+
+export async function fetchUsersForOwnershipTransfer() {
+  try {
+    const response = await apiClient.get('/users')
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch users for ownership transfer:', error)
+    throw error
+  }
+}
+
+export async function deleteProject(projectId: string) {
+  try {
+    const response = await apiClient.delete(`/projects/${projectId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to delete project:', error)
     throw error
   }
 }
@@ -110,3 +171,14 @@ export async function fetchUserGroups() {
 }
 
 export default apiClient
+
+// Refresh project token
+export async function refreshProjectToken(projectId: string) {
+  try {
+    const response = await apiClient.post(`/projects/${projectId}/refresh-token`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to refresh project token:', error)
+    throw error
+  }
+}

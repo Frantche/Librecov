@@ -2,44 +2,24 @@
   <div class="project-settings-view">
     <div class="header-section">
       <h2>{{ project?.name }} - Settings</h2>
-      <router-link :to="`/projects/${projectId}`" class="btn btn-secondary">
-        Back to Project
-      </router-link>
-    </div>
-
-    <div class="settings-section">
-      <h3>Project API Tokens</h3>
-      <p class="description">
-        Create project-specific tokens for uploading coverage data. These tokens can only be used
-        for this project.
-      </p>
-
-      <button @click="showCreateModal = true" class="btn btn-primary mb-2">
-        Create New Token
-      </button>
-
-      <div v-if="loadingTokens" class="loading">Loading tokens...</div>
-
-      <div v-else-if="tokens.length === 0" class="empty-state">
-        <p>No project tokens found. Create your first token to get started.</p>
-      </div>
-
-      <div v-else class="tokens-list">
-        <div v-for="token in tokens" :key="token.id" class="token-card card">
-          <div class="token-header">
-            <h4>{{ token.name }}</h4>
-            <button @click="deleteToken(token.id)" class="btn btn-danger btn-sm">
-              Delete
-            </button>
-          </div>
-          <div class="token-info">
-            <p><strong>Created:</strong> {{ formatDate(token.created_at) }}</p>
-            <p v-if="token.last_used">
-              <strong>Last Used:</strong> {{ formatDate(token.last_used) }}
-            </p>
-            <p v-else><strong>Last Used:</strong> Never</p>
-          </div>
-        </div>
+      <div class="header-actions">
+        <button 
+          v-if="isProjectOwner" 
+          @click="showTransferModal = true" 
+          class="btn btn-warning"
+        >
+          Transfer Ownership
+        </button>
+        <button 
+          v-if="canDeleteProject" 
+          @click="confirmDeleteProject" 
+          class="btn btn-danger"
+        >
+          Delete Project
+        </button>
+        <router-link :to="`/projects/${projectId}`" class="btn btn-secondary">
+          Back to Project
+        </router-link>
       </div>
     </div>
 
@@ -64,67 +44,25 @@
         <div v-for="share in shares" :key="share.id" class="share-card card">
           <div class="share-header">
             <h4>{{ share.group_name }}</h4>
-            <button @click="deleteShare(share.id)" class="btn btn-danger btn-sm">
-              Remove
-            </button>
+            <div class="share-actions">
+              <span 
+                class="membership-indicator"
+                :class="{ 'member-indicator': share.is_user_member, 'non-member-indicator': !share.is_user_member }"
+              >
+                {{ share.is_user_member ? 'You are a member' : 'You are not a member' }}
+              </span>
+              <button 
+                v-if="isProjectOwner" 
+                @click="deleteShare(share.id)" 
+                class="btn btn-danger btn-sm"
+              >
+                Remove
+              </button>
+            </div>
           </div>
           <div class="share-info">
             <p><strong>Shared:</strong> {{ formatDate(share.created_at) }}</p>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create Token Modal -->
-    <div v-if="showCreateModal" class="modal" @click.self="showCreateModal = false">
-      <div class="modal-content">
-        <h3>Create New Project Token</h3>
-        <form @submit.prevent="createToken">
-          <div class="form-group">
-            <label for="token-name">Token Name</label>
-            <input
-              id="token-name"
-              v-model="newTokenName"
-              type="text"
-              placeholder="e.g., GitHub Actions"
-              required
-              class="form-input"
-            />
-            <small>Choose a descriptive name to identify where this token is used.</small>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="showCreateModal = false" class="btn btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-primary">Create Token</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Token Created Modal -->
-    <div v-if="newlyCreatedToken" class="modal" @click.self="closeTokenModal">
-      <div class="modal-content">
-        <h3>Token Created Successfully!</h3>
-        <div class="success-box">
-          <p><strong>Important:</strong> Copy this token now. You won't be able to see it again!</p>
-          <div class="token-display">
-            <code>{{ newlyCreatedToken.token }}</code>
-            <button @click="copyToken" class="btn btn-sm btn-secondary">
-              {{ copied ? 'Copied!' : 'Copy' }}
-            </button>
-          </div>
-          <p class="token-name"><strong>Token Name:</strong> {{ newlyCreatedToken.name }}</p>
-          
-          <div class="usage-example">
-            <h4>Usage Example:</h4>
-            <pre><code>curl -X POST {{ baseUrl }}/upload/v2 \
-  -H "Authorization: Bearer {{ newlyCreatedToken.token }}" \
-  -F "json_file=@coverage.json"</code></pre>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button @click="closeTokenModal" class="btn btn-primary">I've Saved My Token</button>
         </div>
       </div>
     </div>
@@ -163,40 +101,78 @@
         </form>
       </div>
     </div>
+
+    <!-- Transfer Ownership Modal -->
+    <div v-if="showTransferModal" class="modal" @click.self="showTransferModal = false">
+      <div class="modal-content">
+        <h3>Transfer Project Ownership</h3>
+        <div class="warning-box">
+          <p><strong>Warning:</strong> Transferring ownership will give the new owner full control over this project, including the ability to delete it and manage its shares. This action cannot be undone.</p>
+        </div>
+        <form @submit.prevent="transferOwnership">
+          <div class="form-group">
+            <label for="new-owner">New Owner</label>
+            <select
+              id="new-owner"
+              v-model="selectedNewOwner"
+              required
+              class="form-input"
+            >
+              <option value="">Select a new owner...</option>
+              <option 
+                v-for="user in allUsers" 
+                :key="user.id" 
+                :value="user.id.toString()"
+                :disabled="user.id === project?.user_id"
+              >
+                {{ user.name }} ({{ user.email }})
+                <span v-if="user.id === project?.user_id"> - Current Owner</span>
+              </option>
+            </select>
+            <small>Select the user who will become the new owner of this project.</small>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="showTransferModal = false" class="btn btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-danger" :disabled="!selectedNewOwner">
+              Transfer Ownership
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { apiClient, fetchProjectShares, createProjectShare, deleteProjectShare, fetchUserGroups } from '../services/api'
-import type { Project, ProjectShare } from '../types'
-
-interface Token {
-  id: number
-  name: string
-  token?: string
-  created_at: string
-  last_used?: string
-}
+import { apiClient, fetchProjectShares, createProjectShare, deleteProjectShare, fetchUserGroups, fetchUsersForOwnershipTransfer, transferProjectOwnership, deleteProject } from '../services/api'
+import { useAuthStore } from '../stores/auth'
+import type { Project, ProjectShare, User } from '../types'
 
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
+const authStore = useAuthStore()
 
 const project = ref<Project | null>(null)
-const tokens = ref<Token[]>([])
 const shares = ref<ProjectShare[]>([])
 const userGroups = ref<string[]>([])
-const loadingTokens = ref(true)
+const allUsers = ref<User[]>([])
 const loadingShares = ref(true)
-const showCreateModal = ref(false)
 const showShareModal = ref(false)
-const newTokenName = ref('')
+const showTransferModal = ref(false)
 const selectedGroup = ref('')
-const newlyCreatedToken = ref<Token | null>(null)
-const copied = ref(false)
+const selectedNewOwner = ref('')
 
-const baseUrl = computed(() => window.location.origin)
+const isProjectOwner = computed(() => {
+  return project.value && authStore.user && project.value.user_id === authStore.user.id
+})
+
+const canDeleteProject = computed(() => {
+  return isProjectOwner.value || (authStore.user && authStore.user.admin)
+})
 
 const fetchProject = async () => {
   try {
@@ -207,22 +183,10 @@ const fetchProject = async () => {
   }
 }
 
-const fetchTokens = async () => {
-  try {
-    loadingTokens.value = true
-    const response = await apiClient.get(`/projects/${projectId.value}/tokens`)
-    tokens.value = response.data
-  } catch (error) {
-    console.error('Failed to fetch tokens:', error)
-  } finally {
-    loadingTokens.value = false
-  }
-}
-
 const fetchShares = async () => {
   try {
     loadingShares.value = true
-    shares.value = await fetchProjectShares(Number(projectId.value))
+    shares.value = await fetchProjectShares(projectId.value)
   } catch (error) {
     console.error('Failed to fetch shares:', error)
   } finally {
@@ -238,32 +202,11 @@ const loadUserGroups = async () => {
   }
 }
 
-const createToken = async () => {
+const loadAllUsers = async () => {
   try {
-    const response = await apiClient.post(`/projects/${projectId.value}/tokens`, {
-      name: newTokenName.value,
-    })
-    newlyCreatedToken.value = response.data
-    showCreateModal.value = false
-    newTokenName.value = ''
-    await fetchTokens()
+    allUsers.value = await fetchUsersForOwnershipTransfer()
   } catch (error) {
-    console.error('Failed to create token:', error)
-    alert('Failed to create token. Please try again.')
-  }
-}
-
-const deleteToken = async (tokenId: number) => {
-  if (!confirm('Are you sure you want to delete this token? This action cannot be undone.')) {
-    return
-  }
-
-  try {
-    await apiClient.delete(`/projects/${projectId.value}/tokens/${tokenId}`)
-    await fetchTokens()
-  } catch (error) {
-    console.error('Failed to delete token:', error)
-    alert('Failed to delete token. Please try again.')
+    console.error('Failed to fetch all users:', error)
   }
 }
 
@@ -273,7 +216,7 @@ const createShare = async () => {
   }
 
   try {
-    await createProjectShare(Number(projectId.value), selectedGroup.value)
+    await createProjectShare(projectId.value, selectedGroup.value)
     showShareModal.value = false
     selectedGroup.value = ''
     await fetchShares()
@@ -290,7 +233,7 @@ const deleteShare = async (shareId: number) => {
   }
 
   try {
-    await deleteProjectShare(Number(projectId.value), shareId)
+    await deleteProjectShare(projectId.value, shareId)
     await fetchShares()
   } catch (error) {
     console.error('Failed to delete share:', error)
@@ -298,23 +241,47 @@ const deleteShare = async (shareId: number) => {
   }
 }
 
-const copyToken = async () => {
-  if (newlyCreatedToken.value?.token) {
-    try {
-      await navigator.clipboard.writeText(newlyCreatedToken.value.token)
-      copied.value = true
-      setTimeout(() => {
-        copied.value = false
-      }, 2000)
-    } catch (error) {
-      console.error('Failed to copy token:', error)
-    }
+const transferOwnership = async () => {
+  if (!selectedNewOwner.value) {
+    return
+  }
+
+  if (!confirm('Are you sure you want to transfer ownership of this project? This action cannot be undone.')) {
+    return
+  }
+
+  try {
+    await transferProjectOwnership(projectId.value, selectedNewOwner.value)
+    showTransferModal.value = false
+    selectedNewOwner.value = ''
+    await fetchProject() // Refresh project data to show new owner
+    alert('Ownership transferred successfully!')
+  } catch (error: any) {
+    console.error('Failed to transfer ownership:', error)
+    const errorMsg = error.response?.data?.error || 'Failed to transfer ownership. Please try again.'
+    alert(errorMsg)
   }
 }
 
-const closeTokenModal = () => {
-  newlyCreatedToken.value = null
-  copied.value = false
+const confirmDeleteProject = async () => {
+  if (!project.value) return
+
+  const message = `Are you sure you want to delete the project "${project.value.name}"? This action cannot be undone and will permanently delete all project data including builds, jobs, and coverage information.`
+
+  if (!confirm(message)) {
+    return
+  }
+
+  try {
+    await deleteProject(projectId.value)
+    alert('Project deleted successfully!')
+    // Navigate back to projects list
+    window.location.href = '/projects'
+  } catch (error: any) {
+    console.error('Failed to delete project:', error)
+    const errorMsg = error.response?.data?.error || 'Failed to delete project. Please try again.'
+    alert(errorMsg)
+  }
 }
 
 const formatDate = (dateString: string) => {
@@ -329,9 +296,9 @@ const formatDate = (dateString: string) => {
 
 onMounted(() => {
   fetchProject()
-  fetchTokens()
   fetchShares()
   loadUserGroups()
+  loadAllUsers()
 })
 </script>
 
@@ -345,6 +312,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .settings-section {
@@ -366,33 +339,6 @@ onMounted(() => {
 
 .mb-2 {
   margin-bottom: 1rem;
-}
-
-.tokens-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.token-card {
-  padding: 1.5rem;
-}
-
-.token-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.token-header h4 {
-  margin: 0;
-}
-
-.token-info p {
-  margin: 0.5rem 0;
-  color: #666;
 }
 
 .loading,
@@ -468,16 +414,6 @@ onMounted(() => {
   margin: 0.5rem 0;
 }
 
-.token-display {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  background: #fff;
-  padding: 1rem;
-  border-radius: 4px;
-  margin: 1rem 0;
-}
-
 .token-display code {
   flex: 1;
   word-break: break-all;
@@ -549,6 +485,15 @@ onMounted(() => {
   background: #c0392b;
 }
 
+.btn-warning {
+  background: #f39c12;
+  color: white;
+}
+
+.btn-warning:hover {
+  background: #e67e22;
+}
+
 .btn-sm {
   padding: 0.25rem 0.75rem;
   font-size: 0.875rem;
@@ -581,6 +526,31 @@ onMounted(() => {
 
 .share-header h4 {
   margin: 0;
+}
+
+.share-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.membership-indicator {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.member-indicator {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.non-member-indicator {
+  background: #fff3e0;
+  color: #ef6c00;
+  border: 1px solid #ff9800;
 }
 
 .share-info p {

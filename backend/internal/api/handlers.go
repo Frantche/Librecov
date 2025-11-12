@@ -322,6 +322,17 @@ func (h *UserHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+// ListForOwnershipTransfer returns all users for ownership transfer (authenticated users)
+func (h *UserHandler) ListForOwnershipTransfer(c *gin.Context) {
+	var users []models.User
+	if err := h.db.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+
 // Get returns a single user (admin only)
 func (h *UserHandler) Get(c *gin.Context) {
 	id := c.Param("id")
@@ -382,9 +393,21 @@ func (h *UserHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// Delete deletes a user (admin only)
+// Delete deletes a user (admin only) and transfers their projects to the admin
 func (h *UserHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
+
+	// Get the current admin user from context
+	adminUser, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	admin, ok := adminUser.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+		return
+	}
 
 	var user models.User
 	if err := h.db.First(&user, id).Error; err != nil {
@@ -396,12 +419,53 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.Delete(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+	// Prevent admin from deleting themselves
+	if user.ID == admin.ID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete your own account"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
+	// Start a transaction to ensure all operations succeed or fail together
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start transaction"})
+		return
+	}
+
+	// Transfer ownership of all projects owned by the user to the admin
+	if err := tx.Model(&models.Project{}).Where("user_id = ?", user.ID).Update("user_id", admin.ID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to transfer project ownership: %v", err)})
+		return
+	}
+
+	// Delete all user tokens associated with the user
+	if err := tx.Where("user_id = ?", user.ID).Delete(&models.UserToken{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete user tokens: %v", err)})
+		return
+	}
+
+	// Delete the user
+	if err := tx.Delete(&user).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete user: %v", err)})
+		return
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to commit transaction: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted and projects transferred to admin"})
 }
 
 // WebhookHandler handles webhook requests
@@ -434,7 +498,7 @@ func (h *BadgeHandler) GetBadge(c *gin.Context) {
 	id := c.Param("id")
 
 	var project models.Project
-	if err := h.db.First(&project, id).Error; err != nil {
+	if err := h.db.Where("id = ?", id).First(&project).Error; err != nil {
 		c.String(http.StatusNotFound, "Project not found")
 		return
 	}

@@ -24,6 +24,21 @@
             <span>Branch: {{ project.current_branch || 'main' }}</span>
           </div>
         </router-link>
+        
+        <!-- Shared Groups Section -->
+        <div v-if="project.shares && project.shares.length > 0" class="shared-groups">
+          <div class="shared-label">Shared with:</div>
+          <div class="group-tags">
+            <span 
+              v-for="share in project.shares" 
+              :key="share.id"
+              class="group-tag"
+              :class="{ 'member-group': share.is_user_member, 'non-member-group': !share.is_user_member }"
+            >
+              {{ share.group_name }}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -173,10 +188,45 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   color: white;
 }
 
-.project-info {
-  color: #7f8c8d;
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
+/* Shared Groups Section */
+.shared-groups {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.shared-label {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.group-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.group-tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.member-group {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border-color: #4caf50;
+}
+
+.non-member-group {
+  background: #fff3e0;
+  color: #ef6c00;
+  border-color: #ff9800;
 }
 
 .loading, .empty-state {

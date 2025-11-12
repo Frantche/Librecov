@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/coreos/go-oidc/v3 v3.16.0
 	github.com/gin-gonic/gin v1.11.0
+	github.com/google/uuid v1.6.0
 	golang.org/x/oauth2 v0.33.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0

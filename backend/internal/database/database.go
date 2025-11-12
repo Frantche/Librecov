@@ -73,33 +73,11 @@ func runMigrations(db *gorm.DB) error {
 
 // runCustomMigrations handles specific migration cases
 func runCustomMigrations(db *gorm.DB) error {
-	// Check if we need to rename o_id_c_subject to oidc_subject
-	var count int64
-	err := db.Raw("SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'o_id_c_subject' AND table_schema = CURRENT_SCHEMA()").Scan(&count).Error
-	if err != nil {
-		return fmt.Errorf("failed to check for o_id_c_subject column: %w", err)
-	}
-
-	if count > 0 {
-		log.Println("Renaming o_id_c_subject column to oidc_subject...")
-
-		// First drop the unique index if it exists
-		err = db.Exec("DROP INDEX IF EXISTS idx_users_o_id_c_subject").Error
-		if err != nil {
-			log.Printf("Warning: failed to drop index idx_users_o_id_c_subject: %v", err)
-		}
-
-		// Rename the column
-		err = db.Exec("ALTER TABLE users RENAME COLUMN o_id_c_subject TO oidc_subject").Error
-		if err != nil {
-			return fmt.Errorf("failed to rename o_id_c_subject column: %w", err)
-		}
-
-		log.Println("Successfully renamed o_id_c_subject to oidc_subject")
-	}
+	
 
 	return nil
 }
+
 
 // getEnv gets an environment variable with a default fallback
 func getEnv(key, defaultValue string) string {
