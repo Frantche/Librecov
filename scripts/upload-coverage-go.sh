@@ -35,7 +35,8 @@ echo ""
 echo "==> Uploading coverage to Librecov at $LIBRECOV_URL..."
 
 # Upload using goveralls with custom endpoint
-goveralls -endpoint="$LIBRECOV_URL" -coverprofile="$COVERAGE_FILE" -service=manual -repotoken="$PROJECT_TOKEN"
+# Use go run to execute goveralls directly from the module cache
+go run github.com/mattn/goveralls@latest -endpoint="$LIBRECOV_URL" -coverprofile="$COVERAGE_FILE" -service=manual -repotoken="$PROJECT_TOKEN"
 
 echo ""
 echo "Done!"
