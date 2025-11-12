@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -16,64 +16,64 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
-    - uses: actions/checkout@v5
-    
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.25.4'
-    
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-    
-    - name: Download dependencies
-      run: go mod download
-    
-    - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./backend/...
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v5
-      with:
-        file: ./coverage.out
-        flags: backend
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.4"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./backend/...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage.out
+          flags: backend
 
   frontend-test:
     name: Frontend Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
-    - uses: actions/checkout@v5
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Install dependencies
-      working-directory: ./frontend
-      run: npm ci
-    
-    - name: Run linter
-      working-directory: ./frontend
-      run: npm run lint || true
-    
-    - name: Build
-      working-directory: ./frontend
-      run: npm run build
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./frontend
+        run: npm run lint || true
+
+      - name: Build
+        working-directory: ./frontend
+        run: npm run build
 
   build-and-push:
     name: Build Docker Image
@@ -82,30 +82,30 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     steps:
-    - uses: actions/checkout@v5
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Build Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./Dockerfile
-        push: false
-        tags: librecov:test
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        outputs: type=docker,dest=/tmp/librecov-image.tar
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v5
-      with:
-        name: librecov-image
-        path: /tmp/librecov-image.tar
-        retention-days: 1
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: librecov:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/librecov-image.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: librecov-image
+          path: /tmp/librecov-image.tar
+          retention-days: 1
 
   coverage-api-test:
     name: Test Coverage Upload API
@@ -113,90 +113,89 @@ jobs:
     needs: [build-and-push]
     permissions:
       contents: read
-    
+
     steps:
-    - uses: actions/checkout@v5
-    
-    - name: Download Docker image artifact
-      uses: actions/download-artifact@v6
-      with:
-        name: librecov-image
-        path: /tmp
-    
-    - name: Load Docker image
-      run: docker load --input /tmp/librecov-image.tar
-    
-    - name: Tag image for testing
-      run: |
-        # Get the first image from the loaded tar
-        IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
-        echo "Loaded image: $IMAGE"
-        docker tag $IMAGE librecov:test
-        echo "Tagged as librecov:test"
-    
-    - name: Start services with docker compose
-      run: |
-        docker compose -f docker-compose.test.yml up -d
-        echo "Services started"
-        
-        # Wait for LibreCov to be ready
-        echo "Waiting for LibreCov to be ready..."
-        for i in {1..30}; do
-          if curl -s http://localhost:4000/health > /dev/null 2>&1; then
-            echo "✅ LibreCov is ready!"
-            break
-          fi
-          if [ $i -eq 30 ]; then
-            echo "❌ LibreCov failed to start"
-            docker compose -f docker-compose.test.yml logs
-            exit 1
-          fi
-          echo "Attempt $i/30..."
-          sleep 2
-        done
-        
-        # Show service status
-        docker compose -f docker-compose.test.yml ps
-    
-    - name: Run coverage upload test script
-      run: |
-        # Make the script executable
-        chmod +x scripts/test-coverage-upload.sh
-        
-        # Run the test script
-        ./scripts/test-coverage-upload.sh
-    
-    - name: Show logs on failure
-      if: failure()
-      run: |
-        echo "=== LibreCov logs ==="
-        docker compose -f docker-compose.test.yml logs librecov
-        echo "=== Postgres logs ==="
-        docker compose -f docker-compose.test.yml logs postgres
-    
-    - name: Cleanup
-      if: always()
-      run: docker compose -f docker-compose.test.yml down -v
-    
-    - name: Cleanup
-      if: always()
-      run: docker compose -f docker-compose.test.yml down -v
-    
+      - uses: actions/checkout@v5
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: librecov-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/librecov-image.tar
+
+      - name: Tag image for testing
+        run: |
+          # Get the first image from the loaded tar
+          IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
+          echo "Loaded image: $IMAGE"
+          docker tag $IMAGE librecov:test
+          echo "Tagged as librecov:test"
+
+      - name: Start services with docker compose
+        run: |
+          docker compose -f docker-compose.test.yml up -d
+          echo "Services started"
+
+          # Wait for LibreCov to be ready
+          echo "Waiting for LibreCov to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:4000/health > /dev/null 2>&1; then
+              echo "✅ LibreCov is ready!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ LibreCov failed to start"
+              docker compose -f docker-compose.test.yml logs
+              exit 1
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+
+          # Show service status
+          docker compose -f docker-compose.test.yml ps
+
+      - name: Run coverage upload test script
+        run: |
+          # Make the script executable
+          chmod +x scripts/test-coverage-upload.sh
+
+          # Run the test script
+          ./scripts/test-coverage-upload.sh
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== LibreCov logs ==="
+          docker compose -f docker-compose.test.yml logs librecov
+          echo "=== Postgres logs ==="
+          docker compose -f docker-compose.test.yml logs db
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
   helm-lint:
     name: Lint Helm Chart
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
-    steps:
-    - uses: actions/checkout@v5
-    
-    - name: Install Helm
-      uses: azure/setup-helm@v4
-      with:
-        version: "v3.13.0"
-    
-    - name: Lint Helm chart
-      run: |
-        helm lint helm/librecov
 
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.13.0"
+
+      - name: Lint Helm chart
+        run: |
+          helm lint helm/librecov
