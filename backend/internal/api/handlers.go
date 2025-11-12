@@ -102,8 +102,154 @@ func (h *JobHandler) ListByBuild(c *gin.Context) {
 
 // CreateJob creates a new job (API endpoint)
 func (h *JobHandler) CreateJob(c *gin.Context) {
-	// This will be implemented with coverage upload logic
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented yet"})
+	var upload CoverallsUpload
+
+	// First try to get JSON from form field "json" (goveralls format)
+	jsonStr := c.PostForm("json")
+	if jsonStr != "" {
+		if err := json.Unmarshal([]byte(jsonStr), &upload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
+			return
+		}
+	} else {
+		// If no form field, try reading raw request body
+		body, err := c.GetRawData()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": "Cannot read request body"})
+			return
+		}
+
+		if err := json.Unmarshal(body, &upload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
+			return
+		}
+	}
+
+	// Find project by token
+	var project models.Project
+	if err := h.db.Where("token = ?", upload.RepoToken).First(&project).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid repo token"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	// Get or create build
+	var build models.Build
+	commitSHA := ""
+	commitMsg := ""
+	branch := ""
+
+	if upload.Git != nil {
+		commitSHA = upload.Git.Head.ID
+		commitMsg = upload.Git.Head.Message
+		branch = upload.Git.Branch
+	}
+
+	// Get the latest build number for this project
+	var maxBuildNum int
+	h.db.Model(&models.Build{}).Where("project_id = ?", project.ID).Select("COALESCE(MAX(build_num), 0)").Scan(&maxBuildNum)
+
+	build = models.Build{
+		ProjectID: project.ID,
+		BuildNum:  maxBuildNum + 1,
+		Branch:    branch,
+		CommitSHA: commitSHA,
+		CommitMsg: commitMsg,
+	}
+
+	if err := h.db.Create(&build).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create build"})
+		return
+	}
+
+	// Create job
+	jobNumber := upload.ServiceJobID
+	if jobNumber == "" {
+		jobNumber = fmt.Sprintf("%d.1", build.BuildNum)
+	}
+
+	job := models.Job{
+		BuildID:   build.ID,
+		JobNumber: jobNumber,
+	}
+
+	if err := h.db.Create(&job).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create job"})
+		return
+	}
+
+	// Process source files and calculate coverage
+	totalLines := 0
+	coveredLines := 0
+
+	for _, sourceFile := range upload.SourceFiles {
+		fileLines := 0
+		fileCovered := 0
+
+		// Calculate coverage for this file
+		for _, cov := range sourceFile.Coverage {
+			if cov != nil {
+				fileLines++
+				if val, ok := cov.(float64); ok && val > 0 {
+					fileCovered++
+				}
+			}
+		}
+
+		totalLines += fileLines
+		coveredLines += fileCovered
+
+		// Calculate file coverage rate
+		var fileCoverageRate float64
+		if fileLines > 0 {
+			fileCoverageRate = (float64(fileCovered) / float64(fileLines)) * 100
+		}
+
+		// Store coverage as JSON string
+		coverageJSON, _ := json.Marshal(sourceFile.Coverage)
+
+		jobFile := models.JobFile{
+			JobID:        job.ID,
+			Name:         sourceFile.Name,
+			Source:       sourceFile.Source,
+			Coverage:     string(coverageJSON),
+			CoverageRate: fileCoverageRate,
+		}
+
+		if err := h.db.Create(&jobFile).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create job file"})
+			return
+		}
+	}
+
+	// Calculate overall coverage rate
+	var coverageRate float64
+	if totalLines > 0 {
+		coverageRate = (float64(coveredLines) / float64(totalLines)) * 100
+	}
+
+	// Update job with coverage rate
+	job.CoverageRate = coverageRate
+	h.db.Save(&job)
+
+	// Update build with coverage rate
+	build.CoverageRate = coverageRate
+	h.db.Save(&build)
+
+	// Update project with latest coverage rate
+	project.CoverageRate = coverageRate
+	h.db.Save(&project)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Coverage uploaded successfully",
+		"project_id":    project.ID,
+		"build_id":      build.ID,
+		"job_id":        job.ID,
+		"coverage_rate": coverageRate,
+	})
 }
 
 // CoverallsUpload represents the Coveralls JSON format
@@ -128,11 +274,22 @@ type CoverallsUpload struct {
 
 // Upload handles coverage upload (Coveralls-compatible)
 func (h *JobHandler) Upload(c *gin.Context) {
+	fmt.Printf("DEBUG: Upload called\n")
 	var upload CoverallsUpload
 
+	// First try to bind as direct JSON
 	if err := c.ShouldBindJSON(&upload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
-		return
+		// If that fails, try to get JSON from form field "json" (goveralls format)
+		jsonStr := c.PostForm("json")
+		if jsonStr != "" {
+			if err := json.Unmarshal([]byte(jsonStr), &upload); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
+				return
+			}
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format", "details": err.Error()})
+			return
+		}
 	}
 
 	// Find project by token

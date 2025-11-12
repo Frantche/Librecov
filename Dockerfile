@@ -13,8 +13,13 @@ RUN go mod download
 # Copy backend source
 COPY backend/ ./backend/
 
+# Set Go build cache location
+ENV GOCACHE=/root/.cache/go-build
 # Build backend
-RUN CGO_ENABLED=0 GOOS=linux go build -o /librecov-server backend/cmd/server/main.go
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -o /librecov-server backend/cmd/server/main.go
 
 # Build stage for frontend
 FROM node:25-alpine AS frontend-builder
