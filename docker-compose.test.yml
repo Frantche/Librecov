@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  postgres:
+  db:
     image: postgres:18-alpine
     environment:
       POSTGRES_PASSWORD: postgres
