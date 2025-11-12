@@ -15,7 +15,7 @@ services:
   librecov:
     image: librecov:test
     environment:
-      DB_HOST: postgres
+      DB_HOST: db
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: postgres
