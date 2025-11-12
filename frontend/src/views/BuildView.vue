@@ -78,7 +78,15 @@
           </span>
         </div>
         <div class="source-code">
-          <pre><code v-html="highlightedSource"></code></pre>
+          <div
+            v-for="(line, index) in getFileLines(selectedFile)"
+            :key="index"
+            class="code-line"
+            :class="getLineClass(selectedFile, index)"
+          >
+            <span class="line-number">{{ index + 1 }}</span>
+            <span class="line-content">{{ line }}</span>
+          </div>
         </div>
         <div class="modal-actions">
           <button @click="closeFileDetails" class="btn btn-primary">Close</button>
@@ -103,23 +111,6 @@ const selectedJob = ref<Job | null>(null)
 const selectedFile = ref<JobFile | null>(null)
 const loading = ref(true)
 
-const highlightedSource = computed(() => {
-  if (!selectedFile.value) return ''
-  
-  const coverage = JSON.parse(selectedFile.value.coverage || '[]')
-  const lines = selectedFile.value.source.split('\n')
-  
-  return lines.map((line: string, index: number) => {
-    const cov = coverage[index]
-    let className = 'line'
-    if (cov === 0) className += ' uncovered'
-    else if (cov > 0) className += ' covered'
-    else className += ' neutral'
-    
-    return `<span class="${className}">${(index + 1).toString().padStart(4, ' ')}: ${escapeHtml(line)}</span>`
-  }).join('\n')
-})
-
 const fetchBuildData = async () => {
   try {
     loading.value = true
@@ -141,6 +132,25 @@ const closeFileDetails = () => {
   selectedFile.value = null
 }
 
+const getFileLines = (file: JobFile) => {
+  return file.source.split('\n')
+}
+
+const getLineClass = (file: JobFile, lineIndex: number) => {
+  try {
+    const coverageData = JSON.parse(file.coverage || '[]')
+    const coverage = coverageData[lineIndex]
+
+    if (coverage === null) return '' // No coverage needed
+    if (coverage === 0) return 'uncovered' // Not covered
+    if (coverage > 0) return 'covered' // Covered
+  } catch (e) {
+    console.error('Error parsing coverage data:', e)
+  }
+
+  return ''
+}
+
 const getCoverageClass = (rate: number) => {
   if (rate >= 80) return 'coverage-high'
   if (rate >= 60) return 'coverage-medium'
@@ -155,12 +165,6 @@ const formatDate = (dateString: string) => {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-const escapeHtml = (text: string) => {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
 }
 
 onMounted(() => {
@@ -398,28 +402,41 @@ onMounted(() => {
   overflow-y: auto;
 }
 
-.source-code pre {
-  margin: 0;
-  font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
-  line-height: 1.4;
+.code-line {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  min-height: 1.4em;
 }
 
-.source-code .line {
-  display: block;
+.code-line:last-child {
+  border-bottom: none;
+}
+
+.line-number {
+  display: inline-block;
+  width: 50px;
+  padding: 0 0.5rem;
+  text-align: right;
+  color: #666;
+  border-right: 1px solid #ddd;
+  background: #f8f9fa;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.line-content {
+  flex: 1;
+  padding: 0 0.5rem;
   white-space: pre;
+  overflow-x: auto;
 }
 
-.source-code .line.covered {
-  background: rgba(40, 167, 69, 0.1);
+.code-line.covered {
+  background-color: rgba(25, 135, 84, 0.08);
 }
 
-.source-code .line.uncovered {
-  background: rgba(220, 53, 69, 0.1);
-}
-
-.source-code .line.neutral {
-  background: transparent;
+.code-line.uncovered {
+  background-color: rgba(220, 53, 69, 0.08);
 }
 
 .modal-actions {
