@@ -57,9 +57,9 @@ jobs:
         run: |
           VERSION="${{ needs.version.outputs.version }}"
           cd helm/librecov
-          yq -i '.version = "'$VERSION'"' Chart.yaml
-          yq -i '.appVersion = "'$VERSION'"' Chart.yaml
-          yq -i '.tag = "'$VERSION'"' values.yaml
+          sed -i "s/^version:.*/version: $VERSION/" Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" Chart.yaml
+          sed -i "s/tag:.*/tag: \"$VERSION\"/" values.yaml
           echo "Updated Chart.yaml and values.yaml with version: $VERSION"
 
       - name: Commit and push changes

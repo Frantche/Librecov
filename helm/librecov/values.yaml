@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/frantche/librecov
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -26,7 +26,7 @@ podSecurityContext:
 securityContext:
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
   runAsUser: 1000
@@ -38,7 +38,8 @@ service:
 ingress:
   enabled: false
   className: ""
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
