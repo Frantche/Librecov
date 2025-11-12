@@ -19,6 +19,7 @@
               <th>Name</th>
               <th>Admin</th>
               <th>Created</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -32,6 +33,34 @@
                 </span>
               </td>
               <td>{{ formatDate(user.created_at) }}</td>
+              <td>
+                <div class="action-buttons">
+                  <button 
+                    v-if="!user.admin" 
+                    @click="promoteUser(user.id.toString())" 
+                    class="btn btn-sm btn-warning"
+                    :disabled="loadingAction"
+                  >
+                    Promote to Admin
+                  </button>
+                  <button 
+                    v-if="user.admin && user.id !== currentUserId" 
+                    @click="demoteUser(user.id.toString())" 
+                    class="btn btn-sm btn-secondary"
+                    :disabled="loadingAction"
+                  >
+                    Demote from Admin
+                  </button>
+                  <button 
+                    v-if="user.id !== currentUserId" 
+                    @click="confirmDeleteUser(user)" 
+                    class="btn btn-sm btn-danger"
+                    :disabled="loadingAction"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -42,7 +71,7 @@
     <div class="section">
       <h3>All Projects</h3>
       <div v-if="loadingProjects" class="loading">Loading projects...</div>
-      <div v-else-if="projects.length === 0" class="empty-state">
+      <div v-else-if="visibleProjects.length === 0" class="empty-state">
         <p>No projects found.</p>
       </div>
       <div v-else class="table-container">
@@ -59,7 +88,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="project in projects" :key="project.id">
+            <tr v-for="project in visibleProjects" :key="project.id">
               <td>{{ project.id }}</td>
               <td>
                 <router-link :to="`/projects/${project.id}`" class="link">
@@ -80,9 +109,18 @@
                 <span v-else class="text-muted">None</span>
               </td>
               <td>
-                <router-link :to="`/projects/${project.id}`" class="btn btn-sm btn-primary">
-                  View
-                </router-link>
+                <div class="action-buttons">
+                  <router-link :to="`/projects/${project.id}`" class="btn btn-sm btn-primary">
+                    View
+                  </router-link>
+                  <button 
+                    @click="confirmDeleteProject(project)" 
+                    class="btn btn-sm btn-danger"
+                    :disabled="loadingAction"
+                  >
+                    Delete
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -93,14 +131,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { fetchAllUsers, fetchAllProjects } from '../services/api'
+import { ref, onMounted, computed } from 'vue'
+import { fetchAllUsers, fetchAllProjects, promoteUserToAdmin, demoteUserFromAdmin, deleteUser, deleteProject, fetchUserGroups } from '../services/api'
+import { useAuthStore } from '../stores/auth'
 import type { User, Project } from '../types'
 
 const users = ref<User[]>([])
 const projects = ref<Project[]>([])
+const userGroups = ref<string[]>([])
 const loadingUsers = ref(true)
 const loadingProjects = ref(true)
+const loadingAction = ref(false)
+const authStore = useAuthStore()
+
+const currentUserId = computed(() => authStore.user?.id)
+const currentUser = computed(() => authStore.user)
+const isAdmin = computed(() => authStore.user?.admin || false)
+
+// Filter projects based on user permissions
+const visibleProjects = computed(() => {
+  if (isAdmin.value) {
+    // Admins can see all projects
+    return projects.value
+  }
+
+  return projects.value.filter(project => {
+    // User can see project if they are the owner
+    if (project.user_id === currentUserId.value) {
+      return true
+    }
+
+    // User can see project if they are a member of any shared group
+    if (project.shares && project.shares.length > 0) {
+      return project.shares.some(share => 
+        userGroups.value.includes(share.group_name)
+      )
+    }
+
+    return false
+  })
+})
 
 const loadUsers = async () => {
   try {
@@ -116,11 +186,21 @@ const loadUsers = async () => {
 const loadProjects = async () => {
   try {
     loadingProjects.value = true
-    projects.value = await fetchAllProjects()
+    const allProjects = await fetchAllProjects()
+    projects.value = allProjects
   } catch (error) {
     console.error('Failed to load projects:', error)
   } finally {
     loadingProjects.value = false
+  }
+}
+
+const loadUserGroups = async () => {
+  try {
+    userGroups.value = await fetchUserGroups()
+  } catch (error) {
+    console.error('Failed to load user groups:', error)
+    userGroups.value = []
   }
 }
 
@@ -134,9 +214,89 @@ const getCoverageClass = (coverage: number) => {
   return 'low'
 }
 
+const promoteUser = async (userId: string) => {
+  if (!confirm('Are you sure you want to promote this user to admin?')) {
+    return
+  }
+
+  try {
+    loadingAction.value = true
+    await promoteUserToAdmin(userId)
+    await loadUsers() // Refresh the users list
+    alert('User promoted to admin successfully!')
+  } catch (error) {
+    console.error('Failed to promote user:', error)
+    alert('Failed to promote user. Please try again.')
+  } finally {
+    loadingAction.value = false
+  }
+}
+
+const demoteUser = async (userId: string) => {
+  if (!confirm('Are you sure you want to demote this user from admin?')) {
+    return
+  }
+
+  try {
+    loadingAction.value = true
+    await demoteUserFromAdmin(userId)
+    await loadUsers() // Refresh the users list
+    alert('User demoted from admin successfully!')
+  } catch (error) {
+    console.error('Failed to demote user:', error)
+    alert('Failed to demote user. Please try again.')
+  } finally {
+    loadingAction.value = false
+  }
+}
+
+const confirmDeleteUser = async (user: User) => {
+  const message = `Are you sure you want to delete user "${user.name}" (${user.email})? All their projects will be transferred to you. This action cannot be undone.`
+  
+  if (!confirm(message)) {
+    return
+  }
+
+  try {
+    loadingAction.value = true
+    await deleteUser(user.id.toString())
+    await loadUsers() // Refresh the users list
+    await loadProjects() // Refresh the projects list to show ownership changes
+    alert('User deleted successfully! Their projects have been transferred to you.')
+  } catch (error: any) {
+    console.error('Failed to delete user:', error)
+    const errorMsg = error.response?.data?.error || 'Failed to delete user. Please try again.'
+    alert(`Failed to delete user: ${errorMsg}`)
+  } finally {
+    loadingAction.value = false
+  }
+}
+
+const confirmDeleteProject = async (project: Project) => {
+  const message = `Are you sure you want to delete the project "${project.name}"? This action cannot be undone and will permanently delete all project data including builds, jobs, and coverage information.`
+
+  if (!confirm(message)) {
+    return
+  }
+
+  try {
+    loadingAction.value = true
+    await deleteProject(project.id)
+    await loadProjects() // Refresh the projects list
+    alert('Project deleted successfully!')
+  } catch (error: any) {
+    console.error('Failed to delete project:', error)
+    const errorMsg = error.response?.data?.error || 'Failed to delete project. Please try again.'
+    alert(errorMsg)
+  } finally {
+    loadingAction.value = false
+  }
+}
+
 onMounted(() => {
   loadUsers()
   loadProjects()
+  loadUserGroups()
 })
 </script>
 
@@ -251,6 +411,12 @@ onMounted(() => {
 .text-muted {
   color: #95a5a6;
   font-style: italic;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .btn-sm {

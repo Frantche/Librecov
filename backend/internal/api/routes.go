@@ -65,6 +65,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 			protected.POST("/projects/:id/shares", projectHandler.CreateShare)
 			protected.DELETE("/projects/:id/shares/:shareId", projectHandler.DeleteShare)
 
+			// Project ownership transfer
+			protected.POST("/projects/:id/transfer-ownership", projectHandler.TransferOwnership)
+
+			// Users for ownership transfer
+			userHandler := NewUserHandler(db)
+			protected.GET("/users", userHandler.ListForOwnershipTransfer)
+
 			// Builds
 			buildHandler := NewBuildHandler(db)
 			protected.GET("/projects/:id/builds", buildHandler.List)

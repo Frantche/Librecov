@@ -28,16 +28,20 @@ INSERT INTO users (email, name, admin, token, created_at, updated_at)
 VALUES ('test@example.com', 'Test User', true, 'test-user-token-12345', NOW(), NOW())
 ON CONFLICT (email) DO NOTHING;
 
--- Get the user ID
+-- Get the user ID and create a test project
 DO \$\$
 DECLARE
     v_user_id INTEGER;
+    v_project_id VARCHAR(36);
 BEGIN
     SELECT id INTO v_user_id FROM users WHERE email = 'test@example.com';
     
+    -- Generate a UUID for the project
+    v_project_id := gen_random_uuid()::text;
+    
     -- Create a test project if not exists
-    INSERT INTO projects (name, token, current_branch, user_id, coverage_rate, created_at, updated_at)
-    VALUES ('Librecov Test Project', 'test-project-token-67890', 'main', v_user_id, 0.0, NOW(), NOW())
+    INSERT INTO projects (id, name, token, current_branch, user_id, coverage_rate, created_at, updated_at)
+    VALUES (v_project_id, 'Librecov Test Project', 'test-project-token-67890', 'main', v_user_id, 0.0, NOW(), NOW())
     ON CONFLICT (token) DO NOTHING;
 END \$\$;
 
@@ -62,16 +66,45 @@ echo ""
 echo "Step 3: Verify upload via API"
 echo "-------------------------------------------"
 
-# Get the project details
-PROJECT_DATA=$(curl -s "$LIBRECOV_URL/api/v1/projects/1")
-echo "Project data:"
-echo "$PROJECT_DATA" | jq '.'
+# Get the project details by querying the database directly
+echo "Step 3: Verify upload via database"
+echo "-------------------------------------------"
 
-# Get builds
+PROJECT_INFO=$(docker exec librecov-db-1 psql -U postgres -d librecov_dev -t -c "
+SELECT 
+    p.id, p.name, p.token, p.coverage_rate,
+    COUNT(b.id) as build_count,
+    COUNT(j.id) as job_count
+FROM projects p
+LEFT JOIN builds b ON b.project_id = p.id
+LEFT JOIN jobs j ON j.build_id = b.id
+WHERE p.token = 'test-project-token-67890'
+GROUP BY p.id, p.name, p.token, p.coverage_rate;")
+
+echo "Project info from database:"
+echo "$PROJECT_INFO"
+
+# Also check builds and jobs
 echo ""
-echo "Builds:"
-BUILDS=$(curl -s "$LIBRECOV_URL/api/v1/projects/1/builds")
-echo "$BUILDS" | jq '.'
+echo "Recent builds:"
+docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "
+SELECT b.id, b.build_num, b.branch, b.commit_sha, b.coverage_rate, b.created_at
+FROM builds b
+JOIN projects p ON p.id = b.project_id
+WHERE p.token = 'test-project-token-67890'
+ORDER BY b.created_at DESC
+LIMIT 5;"
+
+echo ""
+echo "Recent jobs:"
+docker exec librecov-db-1 psql -U postgres -d librecov_dev -c "
+SELECT j.id, j.job_number, j.coverage_rate, b.build_num, p.name
+FROM jobs j
+JOIN builds b ON b.id = j.build_id
+JOIN projects p ON p.id = b.project_id
+WHERE p.token = 'test-project-token-67890'
+ORDER BY j.created_at DESC
+LIMIT 5;"
 
 echo ""
 echo "========================================="

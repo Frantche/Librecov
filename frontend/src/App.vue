@@ -6,7 +6,7 @@
         <nav class="nav">
           <router-link to="/" class="nav-link">Projects</router-link>
           <router-link v-if="authStore.isAuthenticated" to="/tokens" class="nav-link">API Tokens</router-link>
-          <router-link v-if="authStore.isAuthenticated" to="/admin" class="nav-link">Admin</router-link>
+          <router-link v-if="authStore.isAuthenticated && authStore.user?.admin" to="/admin" class="nav-link">Admin</router-link>
           <div v-if="authStore.isAuthenticated" class="user-info">
             <span>{{ authStore.user?.name || authStore.user?.email }}</span>
             <button @click="logout" class="btn btn-secondary">Logout</button>

@@ -51,7 +51,47 @@ func (h *ProjectHandler) List(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, projects)
+	// Add user membership information to project shares
+	var userGroups []string
+	if user.Groups != "" {
+		json.Unmarshal([]byte(user.Groups), &userGroups)
+	}
+
+	type ProjectShareWithMembership struct {
+		models.ProjectShare
+		IsUserMember bool `json:"is_user_member"`
+	}
+
+	type ProjectWithShareMembership struct {
+		models.Project
+		ProjectShares []ProjectShareWithMembership `json:"shares,omitempty" gorm:"foreignKey:ProjectID"`
+	}
+
+	projectsWithMembership := make([]ProjectWithShareMembership, len(projects))
+	for i, project := range projects {
+		sharesWithMembership := make([]ProjectShareWithMembership, len(project.ProjectShares))
+		for j, share := range project.ProjectShares {
+			isMember := user.Admin // Admins are considered members of all groups
+			if !isMember {
+				for _, group := range userGroups {
+					if group == share.GroupName {
+						isMember = true
+						break
+					}
+				}
+			}
+			sharesWithMembership[j] = ProjectShareWithMembership{
+				ProjectShare: share,
+				IsUserMember: isMember,
+			}
+		}
+		projectsWithMembership[i] = ProjectWithShareMembership{
+			Project:       project,
+			ProjectShares: sharesWithMembership,
+		}
+	}
+
+	c.JSON(http.StatusOK, projectsWithMembership)
 }
 
 // Get returns a single project
@@ -81,7 +121,7 @@ func (h *ProjectHandler) Get(c *gin.Context) {
 		}
 	}
 
-	if err := query.First(&project, id).Error; err != nil {
+	if err := query.Where("id = ?", id).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		} else {
@@ -145,7 +185,7 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 		query = query.Where("user_id = ?", user.ID)
 	}
 
-	if err := query.First(&project, id).Error; err != nil {
+	if err := query.Where("id = ?", id).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		} else {
@@ -199,7 +239,7 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 		query = query.Where("user_id = ?", user.ID)
 	}
 
-	if err := query.First(&project, id).Error; err != nil {
+	if err := query.Where("id = ?", id).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		} else {
@@ -216,7 +256,7 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Project deleted"})
 }
 
-// GetShares returns all shares for a project
+// GetShares returns all group shares for a project
 func (h *ProjectHandler) GetShares(c *gin.Context) {
 	projectID := c.Param("id")
 	user, exists := middleware.GetCurrentUser(c)
@@ -225,14 +265,26 @@ func (h *ProjectHandler) GetShares(c *gin.Context) {
 		return
 	}
 
-	// Verify user owns the project
+	// Verify user has access to the project (same logic as Get method)
 	var project models.Project
 	query := h.db
+
 	if !user.Admin {
-		query = query.Where("user_id = ?", user.ID)
+		// Get user's groups
+		var userGroups []string
+		if user.Groups != "" {
+			json.Unmarshal([]byte(user.Groups), &userGroups)
+		}
+
+		// Check if user owns project or has access via group
+		if len(userGroups) > 0 {
+			query = query.Where("user_id = ? OR id IN (SELECT project_id FROM project_shares WHERE group_name IN (?) AND deleted_at IS NULL)", user.ID, userGroups)
+		} else {
+			query = query.Where("user_id = ?", user.ID)
+		}
 	}
 
-	if err := query.First(&project, projectID).Error; err != nil {
+	if err := query.Where("id = ?", projectID).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		} else {
@@ -247,7 +299,35 @@ func (h *ProjectHandler) GetShares(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, shares)
+	// Add user membership information to shares
+	var userGroups []string
+	if user.Groups != "" {
+		json.Unmarshal([]byte(user.Groups), &userGroups)
+	}
+
+	type ShareWithMembership struct {
+		models.ProjectShare
+		IsUserMember bool `json:"is_user_member"`
+	}
+
+	sharesWithMembership := make([]ShareWithMembership, len(shares))
+	for i, share := range shares {
+		isMember := user.Admin // Admins are considered members of all groups
+		if !isMember {
+			for _, group := range userGroups {
+				if group == share.GroupName {
+					isMember = true
+					break
+				}
+			}
+		}
+		sharesWithMembership[i] = ShareWithMembership{
+			ProjectShare: share,
+			IsUserMember: isMember,
+		}
+	}
+
+	c.JSON(http.StatusOK, sharesWithMembership)
 }
 
 // CreateShare shares a project with a group
@@ -266,7 +346,7 @@ func (h *ProjectHandler) CreateShare(c *gin.Context) {
 		query = query.Where("user_id = ?", user.ID)
 	}
 
-	if err := query.First(&project, projectID).Error; err != nil {
+	if err := query.Where("id = ?", projectID).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		} else {
@@ -343,7 +423,7 @@ func (h *ProjectHandler) DeleteShare(c *gin.Context) {
 		query = query.Where("user_id = ?", user.ID)
 	}
 
-	if err := query.First(&project, projectID).Error; err != nil {
+	if err := query.Where("id = ?", projectID).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		} else {
@@ -368,6 +448,61 @@ func (h *ProjectHandler) DeleteShare(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Share deleted"})
+}
+
+// TransferOwnership transfers project ownership to another user
+func (h *ProjectHandler) TransferOwnership(c *gin.Context) {
+	projectID := c.Param("id")
+	user, exists := middleware.GetCurrentUser(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	// Verify user owns the project
+	var project models.Project
+	query := h.db
+	if !user.Admin {
+		query = query.Where("user_id = ?", user.ID)
+	}
+
+	if err := query.Where("id = ?", projectID).First(&project).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch project"})
+		}
+		return
+	}
+
+	var input struct {
+		NewOwnerID string `json:"new_owner_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify new owner exists
+	var newOwner models.User
+	if err := h.db.Where("id = ?", input.NewOwnerID).First(&newOwner).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "New owner not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify new owner"})
+		}
+		return
+	}
+
+	// Transfer ownership
+	project.UserID = newOwner.ID
+	if err := h.db.Save(&project).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transfer ownership"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ownership transferred successfully"})
 }
 
 // ListAll returns all projects in the system (admin only)

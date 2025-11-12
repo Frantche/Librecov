@@ -39,6 +39,7 @@ export interface ProjectShare {
   group_name: string
   created_at: string
   updated_at: string
+  is_user_member?: boolean
 }
 
 export interface Build {
