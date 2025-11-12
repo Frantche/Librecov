@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
-  postgres:
+  db:
     image: postgres:18-alpine
     environment:
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: librecov_test
+      POSTGRES_DB: librecov_dev
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -17,15 +15,15 @@ services:
   librecov:
     image: librecov:test
     environment:
-      DB_HOST: postgres
+      DB_HOST: db
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: postgres
-      DB_NAME: librecov_test
+      DB_NAME: librecov_dev
       DB_SSLMODE: disable
       PORT: 4000
     ports:
       - "4000:4000"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
