@@ -94,6 +94,11 @@
                 <span class="job-coverage">{{ job.coverage_rate.toFixed(2) }}%</span>
               </div>
             </div>
+            <div class="build-actions">
+              <router-link :to="`/builds/${build.id}`" class="btn btn-primary">
+                View Full Details
+              </router-link>
+            </div>
           </div>
         </div>
       </div>
@@ -525,8 +530,12 @@ onMounted(() => {
   font-size: 0.875rem;
 }
 
-.job-coverage {
-  font-weight: bold;
+.build-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Modal Styles */
