@@ -42,29 +42,36 @@ helm uninstall librecov
 
 The following table lists the configurable parameters of the LibreCov chart and their default values.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `replicaCount` | Number of LibreCov replicas | `1` |
-| `image.repository` | LibreCov image repository | `ghcr.io/frantche/librecov` |
-| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `image.tag` | Image tag | `latest` |
-| `service.type` | Kubernetes service type | `ClusterIP` |
-| `service.port` | Service port | `4000` |
-| `ingress.enabled` | Enable ingress | `false` |
-| `ingress.className` | Ingress class name | `""` |
-| `ingress.hosts` | Ingress hosts | `[{"host": "librecov.local", "paths": [{"path": "/", "pathType": "Prefix"}]}]` |
-| `resources.limits.cpu` | CPU limit | `500m` |
-| `resources.limits.memory` | Memory limit | `512Mi` |
-| `resources.requests.cpu` | CPU request | `250m` |
-| `resources.requests.memory` | Memory request | `256Mi` |
-| `postgresql.enabled` | Enable PostgreSQL | `true` |
-| `postgresql.auth.username` | PostgreSQL username | `postgres` |
-| `postgresql.auth.password` | PostgreSQL password | `postgres` |
-| `postgresql.auth.database` | PostgreSQL database | `librecov` |
-| `config.oidc.enabled` | Enable OIDC authentication | `false` |
-| `config.oidc.issuer` | OIDC issuer URL | `""` |
-| `config.oidc.clientId` | OIDC client ID | `""` |
-| `config.oidc.clientSecret` | OIDC client secret | `""` |
+| Parameter                                     | Description                                            | Default                                                                        |
+| --------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `replicaCount`                                | Number of LibreCov replicas                            | `1`                                                                            |
+| `image.repository`                            | LibreCov image repository                              | `ghcr.io/frantche/librecov`                                                    |
+| `image.pullPolicy`                            | Image pull policy                                      | `IfNotPresent`                                                                 |
+| `image.tag`                                   | Image tag                                              | `latest`                                                                       |
+| `service.type`                                | Kubernetes service type                                | `ClusterIP`                                                                    |
+| `service.port`                                | Service port                                           | `4000`                                                                         |
+| `ingress.enabled`                             | Enable ingress                                         | `false`                                                                        |
+| `ingress.className`                           | Ingress class name                                     | `""`                                                                           |
+| `ingress.hosts`                               | Ingress hosts                                          | `[{"host": "librecov.local", "paths": [{"path": "/", "pathType": "Prefix"}]}]` |
+| `resources.limits.cpu`                        | CPU limit                                              | `500m`                                                                         |
+| `resources.limits.memory`                     | Memory limit                                           | `512Mi`                                                                        |
+| `resources.requests.cpu`                      | CPU request                                            | `250m`                                                                         |
+| `resources.requests.memory`                   | Memory request                                         | `256Mi`                                                                        |
+| `postgresql.enabled`                          | Enable PostgreSQL                                      | `true`                                                                         |
+| `postgresql.auth.username`                    | PostgreSQL username                                    | `postgres`                                                                     |
+| `postgresql.auth.password`                    | PostgreSQL password                                    | `postgres`                                                                     |
+| `postgresql.auth.database`                    | PostgreSQL database                                    | `librecov`                                                                     |
+| `externalDatabase.host`                       | External PostgreSQL host                               | `""`                                                                           |
+| `externalDatabase.port`                       | External PostgreSQL port                               | `5432`                                                                         |
+| `externalDatabase.user`                       | External PostgreSQL user                               | `postgres`                                                                     |
+| `externalDatabase.password`                   | External PostgreSQL password                           | `""`                                                                           |
+| `externalDatabase.database`                   | External PostgreSQL database                           | `librecov`                                                                     |
+| `externalDatabase.passwordExistingSecretName` | Name of existing secret for external database password | `""`                                                                           |
+| `externalDatabase.passwordExistingSecretKey`  | Key in existing secret for external database password  | `""`                                                                           |
+| `config.oidc.enabled`                         | Enable OIDC authentication                             | `false`                                                                        |
+| `config.oidc.issuer`                          | OIDC issuer URL                                        | `""`                                                                           |
+| `config.oidc.clientId`                        | OIDC client ID                                         | `""`                                                                           |
+| `config.oidc.redirectUrl`                     | OIDC redirect URL                                      |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
@@ -83,7 +90,7 @@ helm install librecov ./helm/librecov -f my-values.yaml
 
 ## OIDC Configuration
 
-To enable OIDC authentication:
+To enable OIDC authentication, you must provide the client secret via an existing secret:
 
 ```yaml
 config:
@@ -91,7 +98,6 @@ config:
     enabled: true
     issuer: "https://your-oidc-provider.com"
     clientId: "your-client-id"
-    clientSecret: "your-client-secret"
     redirectUrl: "https://librecov.example.com/auth/callback"
 ```
 
@@ -109,6 +115,21 @@ externalDatabase:
   user: "librecov"
   password: "your-password"
   database: "librecov"
+```
+
+Alternatively, use an existing secret for the database password:
+
+```yaml
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: "postgres.example.com"
+  port: 5432
+  user: "librecov"
+  database: "librecov"
+  passwordExistingSecretName: "my-db-secret"
+  passwordExistingSecretKey: "password"
 ```
 
 ## Ingress

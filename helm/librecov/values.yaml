@@ -76,6 +76,8 @@ externalDatabase:
   user: postgres
   password: ""
   database: librecov
+  passwordExistingSecretName: "" # Name of an existing secret database password
+  passwordExistingSecretKey: "" # Name of an existing secret database password key
 # Application configuration
 config:
   port: 4000
@@ -84,7 +86,6 @@ config:
     enabled: false
     issuer: ""
     clientId: ""
-    clientSecret: ""
     redirectUrl: ""
 env: []
 # Additional environment variables

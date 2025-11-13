@@ -52,7 +52,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ include "librecov.databaseSecretName" . }}
-                  key: {{ if .Values.postgresql.enabled }}password{{ else }}db-password{{ end }}
+                  key: {{ include "librecov.databaseSecretKey" . }}
             - name: DB_SSLMODE
               value: "disable"
             {{- if .Values.config.oidc.enabled }}

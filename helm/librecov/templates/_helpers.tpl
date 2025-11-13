@@ -109,7 +109,22 @@ Database password secret name
 {{- define "librecov.databaseSecretName" -}}
 {{- if .Values.postgresql.enabled }}
 {{- printf "%s-postgresql" (include "librecov.fullname" .) }}
+{{- else if .Values.externalDatabase.passwordExistingSecretName }}
+{{- .Values.externalDatabase.passwordExistingSecretName }}
 {{- else }}
 {{- printf "%s-database" (include "librecov.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Database password secret key
+*/}}
+{{- define "librecov.databaseSecretKey" -}}
+{{- if .Values.postgresql.enabled }}
+{{- "password" }}
+{{- else if .Values.externalDatabase.passwordExistingSecretName }}
+{{- .Values.externalDatabase.passwordExistingSecretKey }}
+{{- else }}
+{{- "db-password" }}
 {{- end }}
 {{- end }}
