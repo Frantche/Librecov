@@ -21,6 +21,17 @@ func NewBuildHandler(db *gorm.DB) *BuildHandler {
 }
 
 // List returns all builds for a project
+//
+//	@Summary		List builds for a project
+//	@Description	Get all builds for a specific project
+//	@Tags			builds
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Project ID"
+//	@Success		200	{array}		models.Build
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/projects/{id}/builds [get]
 func (h *BuildHandler) List(c *gin.Context) {
 	projectID := c.Param("id")
 
@@ -37,6 +48,18 @@ func (h *BuildHandler) List(c *gin.Context) {
 }
 
 // Get returns a single build
+//
+//	@Summary		Get build details
+//	@Description	Get detailed information about a specific build
+//	@Tags			builds
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Build ID"
+//	@Success		200	{object}	models.Build
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/builds/{id} [get]
 func (h *BuildHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 
@@ -67,6 +90,18 @@ func NewJobHandler(db *gorm.DB) *JobHandler {
 }
 
 // Get returns a single job
+//
+//	@Summary		Get job details
+//	@Description	Get detailed information about a specific job
+//	@Tags			jobs
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Job ID"
+//	@Success		200	{object}	models.Job
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/jobs/{id} [get]
 func (h *JobHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 
@@ -86,6 +121,17 @@ func (h *JobHandler) Get(c *gin.Context) {
 }
 
 // ListByBuild returns all jobs for a build
+//
+//	@Summary		List jobs for a build
+//	@Description	Get all jobs for a specific build
+//	@Tags			jobs
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Build ID"
+//	@Success		200	{array}		models.Job
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/builds/{id}/jobs [get]
 func (h *JobHandler) ListByBuild(c *gin.Context) {
 	buildID := c.Param("id")
 
@@ -273,6 +319,18 @@ type CoverallsUpload struct {
 }
 
 // Upload handles coverage upload (Coveralls-compatible)
+//
+//	@Summary		Upload coverage data
+//	@Description	Upload code coverage data in Coveralls JSON format
+//	@Tags			coverage
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		CoverallsUpload	true	"Coverage data"
+//	@Success		200		{object}	map[string]interface{}
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/upload/v2 [post]
 func (h *JobHandler) Upload(c *gin.Context) {
 	fmt.Printf("DEBUG: Upload called\n")
 	var upload CoverallsUpload

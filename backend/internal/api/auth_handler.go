@@ -34,6 +34,16 @@ func NewAuthHandler(db *gorm.DB, oidcProvider *auth.OIDCProvider) *AuthHandler {
 }
 
 // Login initiates the OIDC login flow with PKCE
+//
+//	@Summary		Initiate OIDC login
+//	@Description	Redirects to OIDC provider for authentication
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Success		302	{string}	string	"Redirect to OIDC provider"
+//	@Failure		501	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Router			/auth/login [get]
 func (h *AuthHandler) Login(c *gin.Context) {
 	if !h.oidcProvider.IsEnabled() {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "OIDC not configured"})
@@ -228,6 +238,14 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 }
 
 // Logout handles user logout
+//
+//	@Summary		Logout user
+//	@Description	Terminate user session
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Router			/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	// Get session ID from cookie
 	sessionID, err := c.Cookie("session_id")
@@ -289,6 +307,16 @@ func (h *AuthHandler) RefreshSession(c *gin.Context) {
 }
 
 // Me returns the current user info
+//
+//	@Summary		Get current user
+//	@Description	Get information about the authenticated user
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	models.User
+//	@Failure		401	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	user, exists := middleware.GetCurrentUser(c)
 	if !exists {

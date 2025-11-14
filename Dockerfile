@@ -13,6 +13,9 @@ RUN go mod download
 # Copy backend source
 COPY backend/ ./backend/
 
+# Copy generated Swagger docs
+COPY docs/ ./docs/
+
 # Set Go build cache location
 ENV GOCACHE=/root/.cache/go-build
 # Build backend
@@ -45,6 +48,9 @@ WORKDIR /app
 
 # Copy backend binary
 COPY --from=backend-builder /librecov-server .
+
+# Copy Swagger docs
+COPY --from=backend-builder /app/docs ./docs
 
 # Copy frontend build
 COPY --from=frontend-builder /app/dist ./frontend/dist
