@@ -35,6 +35,7 @@ LibreCov is a self-hosted open-source code coverage history viewer built with Go
 - Go 1.24+ 
 - Node.js 20+
 - PostgreSQL 12+
+- [Swag](https://github.com/swaggo/swag) CLI tool for API documentation (install with: `go install github.com/swaggo/swag/cmd/swag@latest`)
 - (Optional) OIDC provider for authentication
 - (Optional) Kubernetes 1.19+ and Helm 3.0+ for Kubernetes deployment
 
