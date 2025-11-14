@@ -13,6 +13,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, oidcProvider *auth.OIDCProvide
 	router.Use(corsMiddleware())
 
 	// Health check
+	// @Summary		Health check
+	// @Description	Check if the API is running
+	// @Tags			system
+	// @Accept			json
+	// @Produce		json
+	// @Success		200	{object}	map[string]string
+	// @Router			/health [get]
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})

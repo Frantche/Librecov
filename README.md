@@ -11,6 +11,7 @@ LibreCov is a self-hosted open-source code coverage history viewer built with Go
 - 📄 **File-level Coverage**: View detailed coverage for individual files
 - 👥 **User Management**: Admin panel for managing users and permissions
 - 🎯 **Coveralls Compatible**: Works with existing Coveralls-compatible tools
+- 📚 **Swagger API Documentation**: Interactive API documentation at `/swagger/index.html`
 
 ## Tech Stack
 
@@ -177,7 +178,17 @@ npm run test
 
 ## API Documentation
 
-The API is mostly compatible with the Coveralls API. Key endpoints:
+The API is mostly compatible with the Coveralls API. For detailed interactive documentation, visit the Swagger UI at:
+
+**Swagger UI**: `http://localhost:4000/swagger/index.html`
+
+The Swagger interface provides:
+- Interactive API exploration
+- Detailed request/response schemas
+- Authentication token testing
+- Example requests for all endpoints
+
+Key endpoints:
 
 - `POST /upload/v2` - Upload coverage data (Coveralls compatible)
 - `GET /api/v1/projects` - List projects

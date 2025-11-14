@@ -1,0 +1,721 @@
+basePath: /
+definitions:
+  backend_internal_api.CoverallsUpload:
+    properties:
+      git:
+        properties:
+          branch:
+            type: string
+          head:
+            properties:
+              id:
+                type: string
+              message:
+                type: string
+            type: object
+        type: object
+      repo_token:
+        type: string
+      service_job_id:
+        type: string
+      service_name:
+        type: string
+      service_number:
+        type: string
+      source_files:
+        items:
+          properties:
+            coverage:
+              items: {}
+              type: array
+            name:
+              type: string
+            source:
+              type: string
+          type: object
+        type: array
+    required:
+    - repo_token
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.Build:
+    properties:
+      branch:
+        type: string
+      build_num:
+        type: integer
+      commit_msg:
+        type: string
+      commit_sha:
+        type: string
+      coverage_rate:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: integer
+      jobs:
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Job'
+        type: array
+      project:
+        allOf:
+        - $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Project'
+        description: Relationships
+      project_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.Job:
+    properties:
+      build:
+        allOf:
+        - $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Build'
+        description: Relationships
+      build_id:
+        type: integer
+      coverage_rate:
+        type: number
+      created_at:
+        type: string
+      data:
+        description: JSON data
+        type: string
+      files:
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.JobFile'
+        type: array
+      id:
+        type: integer
+      job_number:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.JobFile:
+    properties:
+      coverage:
+        description: JSON array
+        type: string
+      coverage_rate:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: integer
+      job:
+        allOf:
+        - $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Job'
+        description: Relationships
+      job_id:
+        type: integer
+      name:
+        type: string
+      source:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.Project:
+    properties:
+      base_url:
+        type: string
+      builds:
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Build'
+        type: array
+      coverage_rate:
+        type: number
+      created_at:
+        type: string
+      current_branch:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      shares:
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.ProjectShare'
+        type: array
+      token:
+        type: string
+      tokens:
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.ProjectToken'
+        type: array
+      updated_at:
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.User'
+        description: Relationships
+      user_id:
+        type: integer
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.ProjectShare:
+    properties:
+      created_at:
+        type: string
+      group_name:
+        type: string
+      id:
+        type: integer
+      project_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.ProjectToken:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_used:
+        type: string
+      name:
+        type: string
+      project_id:
+        type: string
+      token:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.User:
+    properties:
+      admin:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
+      groups:
+        description: JSON array of group names from OIDC token
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      projects:
+        description: Relationships
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Project'
+        type: array
+      token:
+        type: string
+      tokens:
+        items:
+          $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.UserToken'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  github_com_Frantche_Librecov_backend_internal_models.UserToken:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_used:
+        type: string
+      name:
+        type: string
+      token:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+host: localhost:4000
+info:
+  contact:
+    email: support@librecov.io
+    name: LibreCov Support
+    url: https://github.com/Frantche/Librecov
+  description: LibreCov is a self-hosted open-source code coverage history viewer.
+    This API is mostly compatible with the Coveralls API.
+  license:
+    name: MIT
+    url: https://github.com/Frantche/Librecov/blob/main/LICENSE
+  termsOfService: http://swagger.io/terms/
+  title: LibreCov API
+  version: "1.0"
+paths:
+  /api/v1/builds/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific build
+      parameters:
+      - description: Build ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Build'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get build details
+      tags:
+      - builds
+  /api/v1/builds/{id}/jobs:
+    get:
+      consumes:
+      - application/json
+      description: Get all jobs for a specific build
+      parameters:
+      - description: Build ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Job'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List jobs for a build
+      tags:
+      - jobs
+  /api/v1/jobs/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific job
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Job'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get job details
+      tags:
+      - jobs
+  /api/v1/projects:
+    get:
+      consumes:
+      - application/json
+      description: Get all projects accessible by the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Project'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List user projects
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      description: Create a new project for the authenticated user
+      parameters:
+      - description: Project data
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            base_url:
+              type: string
+            current_branch:
+              type: string
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Project'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a project
+      tags:
+      - projects
+  /api/v1/projects/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a project and all its associated data
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a project
+      tags:
+      - projects
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Project'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get project details
+      tags:
+      - projects
+    put:
+      consumes:
+      - application/json
+      description: Update project information
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Project data
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            base_url:
+              type: string
+            current_branch:
+              type: string
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Project'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a project
+      tags:
+      - projects
+  /api/v1/projects/{id}/builds:
+    get:
+      consumes:
+      - application/json
+      description: Get all builds for a specific project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.Build'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List builds for a project
+      tags:
+      - builds
+  /auth/login:
+    get:
+      consumes:
+      - application/json
+      description: Redirects to OIDC provider for authentication
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "501":
+          description: Not Implemented
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Initiate OIDC login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Terminate user session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Logout user
+      tags:
+      - auth
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get information about the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Frantche_Librecov_backend_internal_models.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /upload/v2:
+    post:
+      consumes:
+      - application/json
+      description: Upload code coverage data in Coveralls JSON format
+      parameters:
+      - description: Coverage data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/backend_internal_api.CoverallsUpload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload coverage data
+      tags:
+      - coverage
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+  ProjectToken:
+    description: Project token for API access
+    in: query
+    name: token
+    type: apiKey
+swagger: "2.0"
