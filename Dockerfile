@@ -3,18 +3,21 @@ FROM golang:1.25-alpine AS backend-builder
 
 WORKDIR /app
 
-# Install ca-certificates for HTTPS
+# Install ca-certificates for HTTPS and git for go modules
 RUN apk --no-cache add ca-certificates git
 
 # Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Install swag CLI for generating Swagger docs
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+
 # Copy backend source
 COPY backend/ ./backend/
 
-# Copy generated Swagger docs
-COPY docs/ ./docs/
+# Generate Swagger documentation
+RUN swag init -g backend/cmd/server/main.go -o docs --parseDependency --parseInternal
 
 # Set Go build cache location
 ENV GOCACHE=/root/.cache/go-build
