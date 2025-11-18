@@ -17,7 +17,36 @@ import (
 	"github.com/Frantche/Librecov/backend/internal/session"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	_ "github.com/Frantche/Librecov/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+//	@title			LibreCov API
+//	@version		1.0
+//	@description	LibreCov is a self-hosted open-source code coverage history viewer. This API is mostly compatible with the Coveralls API.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	LibreCov Support
+//	@contact.url	https://github.com/Frantche/Librecov
+//	@contact.email	support@librecov.io
+
+//	@license.name	MIT
+//	@license.url	https://github.com/Frantche/Librecov/blob/main/LICENSE
+
+//	@host		localhost:4000
+//	@BasePath	/
+
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Type "Bearer" followed by a space and JWT token.
+
+//	@securityDefinitions.apikey	ProjectToken
+//	@in							query
+//	@name						token
+//	@description				Project token for API access
 
 func main() {
 	// Initialize database
@@ -65,6 +94,9 @@ func main() {
 
 	// Setup API routes
 	api.SetupRoutes(router, db, oidcProvider)
+
+	// Setup Swagger
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Server configuration
 	port := os.Getenv("PORT")

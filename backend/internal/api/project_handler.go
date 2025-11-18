@@ -21,6 +21,17 @@ func NewProjectHandler(db *gorm.DB) *ProjectHandler {
 }
 
 // List returns all projects for the current user
+//
+//	@Summary		List user projects
+//	@Description	Get all projects accessible by the authenticated user
+//	@Tags			projects
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		models.Project
+//	@Failure		401	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/projects [get]
 func (h *ProjectHandler) List(c *gin.Context) {
 	user, exists := middleware.GetCurrentUser(c)
 	if !exists {
@@ -95,6 +106,19 @@ func (h *ProjectHandler) List(c *gin.Context) {
 }
 
 // Get returns a single project
+//
+//	@Summary		Get project details
+//	@Description	Get detailed information about a specific project
+//	@Tags			projects
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Project ID"
+//	@Success		200	{object}	models.Project
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/projects/{id} [get]
 func (h *ProjectHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	user, exists := middleware.GetCurrentUser(c)
@@ -134,6 +158,19 @@ func (h *ProjectHandler) Get(c *gin.Context) {
 }
 
 // Create creates a new project
+//
+//	@Summary		Create a project
+//	@Description	Create a new project for the authenticated user
+//	@Tags			projects
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object{name=string,current_branch=string,base_url=string}	true	"Project data"
+//	@Success		201		{object}	models.Project
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/projects [post]
 func (h *ProjectHandler) Create(c *gin.Context) {
 	user, exists := middleware.GetCurrentUser(c)
 	if !exists {
@@ -170,6 +207,21 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 }
 
 // Update updates a project
+//
+//	@Summary		Update a project
+//	@Description	Update project information
+//	@Tags			projects
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string														true	"Project ID"
+//	@Param			body	body		object{name=string,current_branch=string,base_url=string}	true	"Project data"
+//	@Success		200		{object}	models.Project
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/projects/{id} [put]
 func (h *ProjectHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	user, exists := middleware.GetCurrentUser(c)
@@ -224,6 +276,19 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 }
 
 // Delete deletes a project
+//
+//	@Summary		Delete a project
+//	@Description	Delete a project and all its associated data
+//	@Tags			projects
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Project ID"
+//	@Success		200	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/projects/{id} [delete]
 func (h *ProjectHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	user, exists := middleware.GetCurrentUser(c)

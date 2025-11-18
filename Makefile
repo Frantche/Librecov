@@ -11,6 +11,7 @@ install: ## Install all dependencies
 	cd frontend && npm install
 
 build: ## Build backend and frontend
+	swag init -g backend/cmd/server/main.go -o docs --parseDependency --parseInternal
 	go build -o bin/librecov-server backend/cmd/server/main.go
 	cd frontend && npm run build
 
@@ -37,6 +38,9 @@ test-coverage: ## Run backend tests with coverage
 lint: ## Run linters
 	go fmt ./...
 	go vet ./...
+
+swagger: ## Generate Swagger documentation
+	swag init -g backend/cmd/server/main.go -o docs --parseDependency --parseInternal
 
 clean: ## Clean build artifacts
 	rm -rf bin/
