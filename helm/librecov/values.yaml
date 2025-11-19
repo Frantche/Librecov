@@ -99,4 +99,4 @@ envFrom: []
 # - secretRef:
 #     name: my-secret
 
-tag: 0.0.9
+tag: 0.0.10
