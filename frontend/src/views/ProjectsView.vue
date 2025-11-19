@@ -256,9 +256,8 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   padding: 2rem;
   border-radius: 8px;
   min-width: 400px;
-  max-width: 100%;
+  max-width: min(500px, 100%);
   width: 100%;
-  max-width: 500px;
 }
 
 .form-input {

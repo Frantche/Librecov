@@ -1,5 +1,13 @@
 <template>
   <div id="app">
+    <!-- Mobile menu backdrop -->
+    <div 
+      v-if="mobileMenuOpen" 
+      class="mobile-backdrop" 
+      @click="mobileMenuOpen = false"
+      aria-hidden="true"
+    ></div>
+    
     <header class="header">
       <div class="container">
         <h1 class="logo">LibreCov</h1>
@@ -39,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from './stores/auth'
 import { useRouter } from 'vue-router'
 
@@ -63,6 +71,21 @@ const logout = async () => {
   mobileMenuOpen.value = false
   await authStore.logout()
 }
+
+// Handle Escape key to close mobile menu for accessibility
+const handleEscapeKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && mobileMenuOpen.value) {
+    mobileMenuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleEscapeKey)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscapeKey)
+})
 </script>
 
 <style scoped>
@@ -284,6 +307,17 @@ const logout = async () => {
     display: block;
   }
   
+  .mobile-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 150;
+    transition: opacity 0.3s;
+  }
+  
   .nav {
     position: fixed;
     top: 0;
@@ -297,6 +331,7 @@ const logout = async () => {
     transition: right 0.3s;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
     overflow-y: auto;
+    z-index: 200;
   }
   
   .nav.mobile-open {
