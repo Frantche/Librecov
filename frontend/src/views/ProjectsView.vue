@@ -144,6 +144,8 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .projects-grid {
@@ -246,6 +248,7 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modal-content {
@@ -253,6 +256,8 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   padding: 2rem;
   border-radius: 8px;
   min-width: 400px;
+  max-width: min(500px, 100%);
+  width: 100%;
 }
 
 .form-input {
@@ -261,6 +266,7 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   margin: 0.5rem 0;
   border: 1px solid #ddd;
   border-radius: 4px;
+  font-size: 1rem;
 }
 
 .modal-actions {
@@ -268,5 +274,65 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   gap: 1rem;
   justify-content: flex-end;
   margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Tablet breakpoint */
+@media (max-width: 768px) {
+  .projects-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+  
+  .header-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .header-section h2 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 640px) {
+  .projects-view {
+    padding: 0.75rem 0;
+  }
+  
+  .header-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header-section h2 {
+    font-size: 1.25rem;
+    text-align: center;
+  }
+  
+  .projects-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .modal {
+    padding: 0.5rem;
+  }
+  
+  .modal-content {
+    padding: 1.5rem;
+    min-width: 0;
+  }
+  
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+  
+  .loading, .empty-state {
+    padding: 2rem 1rem;
+  }
 }
 </style>
