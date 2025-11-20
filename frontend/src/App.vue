@@ -95,7 +95,7 @@ onUnmounted(() => {
   padding: 1rem 0;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 300;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -121,7 +121,8 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   padding: 0.5rem;
-  z-index: 101;
+  z-index: 250;
+  position: relative;
 }
 
 .hamburger-icon {
@@ -331,7 +332,7 @@ onUnmounted(() => {
     transition: right 0.3s;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
     overflow-y: auto;
-    z-index: 200;
+    z-index: 350;
   }
   
   .nav.mobile-open {
