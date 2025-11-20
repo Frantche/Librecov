@@ -332,7 +332,7 @@ onUnmounted(() => {
     transition: right 0.3s;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
     overflow-y: auto;
-    z-index: 200;
+    z-index: 350;
   }
   
   .nav.mobile-open {
