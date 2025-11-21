@@ -3,7 +3,7 @@ module github.com/Frantche/Librecov
 go 1.25.4
 
 require (
-	github.com/coreos/go-oidc/v3 v3.16.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/swaggo/files v1.0.1
