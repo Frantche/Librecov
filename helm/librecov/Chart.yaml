@@ -2,8 +2,8 @@ apiVersion: v2
 name: librecov-helm
 description: A Helm chart for LibreCov - Open source code coverage history viewer
 type: application
-version: 0.0.210
-appVersion: "0.0.210"
+version: 0.0.211
+appVersion: "0.0.211"
 keywords:
   - coverage
   - testing
