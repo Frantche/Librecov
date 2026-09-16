@@ -15,7 +15,7 @@
   "license": "MIT",
   "description": "LibreCov Frontend - Code Coverage History Viewer",
   "dependencies": {
-    "@vueuse/core": "^14.0.0",
+    "@vueuse/core": "^15.0.0",
     "axios": "^1.13.2",
     "pinia": "^4.0.0",
     "vue": "^3.5.24",
