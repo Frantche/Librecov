@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	_ "github.com/Frantche/Librecov/docs"
-	swaggerFiles "github.com/swaggo/files"
+	swaggerFiles "github.com/swaggo/files/v2"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
