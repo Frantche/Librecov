@@ -19,8 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	_ "github.com/Frantche/Librecov/docs"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 //	@title			LibreCov API
@@ -96,7 +95,7 @@ func main() {
 	api.SetupRoutes(router, db, oidcProvider)
 
 	// Setup Swagger
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router.GET("/swagger/*any", gin.WrapH(httpSwagger.WrapHandler))
 
 	// Server configuration
 	port := os.Getenv("PORT")
